@@ -333,9 +333,11 @@ function renderSingleVehicleCost() {
   const monthlyKm = distance * roundTrip * workdaysMonth;
   const monthlyLiters = monthlyKm / v.kmpl;
   
-  // Find cheapest fuel that meets octane requirement
+  // Find cheapest fuel that matches fuel type and meets octane requirement
+  const fuelType = v.engine_type === "DIESEL" ? "diesel" : "gasoline";
   const suitableFuels = state.fuelPrices.filter(f => 
     f.city_id === state.selectedCity.id &&
+    f.fuel_type === fuelType &&
     f.octane_rating >= v.min_octane
   );
   
@@ -400,8 +402,10 @@ function startComparison() {
   const monthlyKm = distance * roundTrip * workdaysMonth;
   const monthlyLiters = monthlyKm / v.kmpl;
   
+  const fuelType = v.engine_type === "DIESEL" ? "diesel" : "gasoline";
   const suitableFuels = state.fuelPrices.filter(f => 
     f.city_id === state.selectedCity.id &&
+    f.fuel_type === fuelType &&
     f.octane_rating >= v.min_octane
   );
   
@@ -545,8 +549,10 @@ function renderComparison() {
   
   const calculateCost = (v) => {
     const monthlyLiters = monthlyKm / v.kmpl;
+    const fuelType = v.engine_type === "DIESEL" ? "diesel" : "gasoline";
     const suitableFuels = state.fuelPrices.filter(f => 
       f.city_id === state.selectedCity.id &&
+      f.fuel_type === fuelType &&
       f.octane_rating >= v.min_octane
     );
     if (suitableFuels.length === 0) return null;
