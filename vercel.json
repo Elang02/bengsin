@@ -1,0 +1,17 @@
+{
+  "functions": {
+    "api/run.py": {
+      "runtime": "@vercel/python"
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/run.py"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/bengsin-frontend/$1"
+    }
+  ]
+}
