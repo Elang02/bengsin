@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bengsin — Kalkulator & Perbandingan Biaya BBM</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --bordeaux: oklch(0.30 0.11 12);
+      --gold: oklch(0.76 0.13 85);
+      --accent: oklch(0.76 0.13 85);
+      --ink: oklch(0.18 0.01 60);
+      --muted: oklch(0.55 0.01 60);
+    }
+    body { font-family: system-ui, sans-serif; background: #fafafa; color: var(--ink); }
+    .nav-link { cursor: pointer; padding: 0.5rem 1rem; border-bottom: 2px solid transparent; }
+    .nav-link.active { color: var(--bordeaux); border-bottom-color: var(--bordeaux); font-weight: 600; }
+    .hidden { display: none !important; }
+    .preset-card { cursor: pointer; padding: 1rem; border: 2px solid #e5e7eb; border-radius: 0.5rem; transition: all 0.2s; }
+    .preset-card:hover { border-color: var(--bordeaux); background: #fef3c7; }
+    .preset-card.selected-a { border-color: #10b981; background: #d1fae5; }
+    .preset-card.selected-b { border-color: #3b82f6; background: #dbeafe; }
+    .card-result { background: white; padding: 1.5rem; border-radius: 0.75rem; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .card-compare { padding: 1.5rem; border: 2px solid #e5e7eb; border-radius: 0.5rem; }
+    .card-compare.winner { border-color: var(--gold); background: #fef3c7; }
+    .highlight-box { background: #fef3c7; padding: 1rem; border-radius: 0.5rem; border-left: 4px solid var(--bordeaux); }
+    .card-sm { background: white; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; }
+    .btn-primary { background: var(--bordeaux); color: white; padding: 0.5rem 1.5rem; border-radius: 0.5rem; font-weight: 600; border: none; cursor: pointer; }
+    .btn-primary:hover { background: oklch(0.25 0.11 12); }
+    .btn-secondary { background: white; color: var(--bordeaux); border: 2px solid var(--bordeaux); padding: 0.5rem 1.5rem; border-radius: 0.5rem; font-weight: 600; cursor: pointer; }
+    .btn-icon { background: transparent; border: none; cursor: pointer; font-size: 1.2rem; }
+    .field { width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; }
+    .label { display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.25rem; color: var(--muted); }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 50; }
+    .modal-content { background: white; padding: 2rem; border-radius: 0.75rem; max-width: 400px; width: 90%; }
+    .error-msg { background: #fee2e2; color: #991b1b; padding: 0.75rem; border-radius: 0.375rem; margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header style="background: white; border-bottom: 1px solid #e5e7eb; position: sticky; top: 0; z-index: 40;">
+    <div style="max-width: 1200px; margin: 0 auto; padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+      <div style="display: flex; align-items: center; gap: 2rem;">
+        <h1 style="font-size: 1.5rem; font-weight: bold; color: var(--bordeaux);">Bengsin</h1>
+        <nav style="display: flex; gap: 1rem;">
+          <span class="nav-link active" data-page="comparison">Perbandingan</span>
+          <span class="nav-link" data-page="garage">Garage</span>
+        </nav>
+      </div>
+      <button id="authBtn" class="btn-secondary">Login</button>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main style="max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem;">
+
+    <!-- Comparison Page (Public) -->
+    <section id="comparisonPage">
+      <h2 style="font-size: 1.875rem; font-weight: bold; color: var(--bordeaux); margin-bottom: 1rem;">
+        Bandingkan Biaya BBM Antar Kendaraan
+      </h2>
+      <p style="color: var(--muted); margin-bottom: 2rem;">
+        Hitung & bandingkan biaya bahan bakar berdasarkan jarak dan hari kerja. Tanpa login.
+      </p>
+
+      <!-- City & Fuel Prices -->
+      <div style="background: white; padding: 1.5rem; border-radius: 0.75rem; margin-bottom: 2rem;">
+        <label class="label" for="citySelect">Kota (untuk harga BBM)</label>
+        <select id="citySelect" class="field"></select>
+        <div id="fuelPricesContainer" class="hidden" style="margin-top: 1rem;"></div>
+      </div>
+
+      <!-- Journey Parameters -->
+      <div style="background: white; padding: 1.5rem; border-radius: 0.75rem; margin-bottom: 2rem;">
+        <h3 class="text-base font-semibold mb-3">Parameter Perjalanan</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="label" for="distanceInput">Jarak sekali jalan (km)</label>
+            <input id="distanceInput" type="number" class="field" min="1" value="10" required>
+          </div>
+          <div>
+            <label class="label" for="daysPerWeekInput">Hari kerja / minggu</label>
+            <input id="daysPerWeekInput" type="number" class="field" min="1" max="7" value="5" required>
+          </div>
+          <div>
+            <label class="label" for="workdaysMonthInput">Hari kerja / bulan (opsional)</label>
+            <input id="workdaysMonthInput" type="number" class="field" min="1" max="31" placeholder="Auto: 22">
+            <div class="text-xs opacity-60 mt-1">Kosongkan untuk auto-calculate</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Vehicle Presets Grid -->
+      <div style="background: white; padding: 1.5rem; border-radius: 0.75rem; margin-bottom: 2rem;">
+        <!-- Vehicle Search & Selection -->
+        <div style="background: white; padding: 1.5rem; border-radius: 0.75rem; margin-bottom: 2rem;">
+          <h3 class="text-base font-semibold mb-3">Pilih Kendaraan</h3>
+          <input 
+            id="vehicleSearch" 
+            type="text" 
+            class="field mb-3" 
+            placeholder="Cari kendaraan... (contoh: avanza, beat, honda)"
+            autocomplete="off">
+          <div id="searchResults" class="space-y-2"></div>
+        </div>
+
+        <!-- Single Vehicle Cost -->
+        <div id="singleVehicleCost" class="hidden"></div>
+
+        <!-- Comparison Result -->
+        <div id="comparisonResult" class="hidden"></div>
+    </section>
+
+    <!-- Garage Page (Authenticated) -->
+    <section id="garagePage" class="hidden">
+      <h2 style="font-size: 1.875rem; font-weight: bold; color: var(--bordeaux); margin-bottom: 2rem;">
+        Garage Saya
+      </h2>
+
+      <!-- Add Vehicle -->
+      <div style="background: white; padding: 1.5rem; border-radius: 0.75rem; margin-bottom: 2rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <h3 style="font-weight: 600;">Kendaraan Saya</h3>
+          <button id="toggleVehicleFormBtn" class="btn-secondary" style="padding: 0.5rem 1rem;">
+            + Tambah Kendaraan
+          </button>
+        </div>
+        
+        <!-- Vehicle Form (hidden by default) -->
+        <form id="vehicleForm" class="hidden" style="margin-top: 1rem;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+            <div>
+              <label class="label" for="vNickname">Nama panggilan</label>
+              <input id="vNickname" class="field" placeholder="Vario Hitam" required>
+            </div>
+            <div>
+              <label class="label" for="vType">Jenis</label>
+              <select id="vType" class="field" required>
+                <option value="Car">Mobil</option>
+                <option value="Motorcycle">Motor</option>
+              </select>
+            </div>
+            <div>
+              <label class="label" for="vBrand">Merek</label>
+              <select id="vBrand" class="field" required>
+                <option value="">Pilih merek</option>
+              </select>
+            </div>
+            <div>
+              <label class="label" for="vModel">Model</label>
+              <input id="vModel" class="field" placeholder="Avanza" required>
+            </div>
+            <div>
+              <label class="label" for="vEngine">Tipe Mesin</label>
+              <select id="vEngine" class="field" required>
+                <option value="GASOLINE">Bensin</option>
+                <option value="DIESEL">Diesel</option>
+                <option value="ELECTRIC">Listrik</option>
+                <option value="HYBRID">Hybrid</option>
+              </select>
+            </div>
+            <div>
+              <label class="label" for="vOctane">Min. Oktan</label>
+              <input id="vOctane" type="number" class="field" min="88" max="98" step="1" placeholder="90" required>
+            </div>
+            <div>
+              <label class="label" for="vKmpl">Konsumsi BBM (km/L)</label>
+              <input id="vKmpl" type="number" class="field" step="0.1" placeholder="15.5" required>
+            </div>
+          </div>
+          <div id="vehicleError" class="error-msg hidden"></div>
+          <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" id="vehicleSubmitBtn" class="btn-primary">Simpan</button>
+            <button type="button" id="cancelVehicleFormBtn" class="btn-secondary">Batal</button>
+          </div>
+        </form>
+        
+        <!-- Vehicle List -->
+        <div id="vehicleList" style="margin-top: 1rem;"></div>
+      </div>
+
+      <!-- Add Expense -->
+      <div style="background: white; padding: 1.5rem; border-radius: 0.75rem; margin-bottom: 2rem;">
+        <h3 style="font-weight: 600; margin-bottom: 1rem;">Catat Pengisian BBM</h3>
+        <form id="expenseForm">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+            <div>
+              <label class="label" for="eVehicle">Kendaraan</label>
+              <select id="eVehicle" class="field" required></select>
+            </div>
+            <div>
+              <label class="label" for="eFuelType">Jenis BBM</label>
+              <select id="eFuelType" class="field" required>
+                <option value="">Pilih BBM</option>
+              </select>
+            </div>
+            <div>
+              <label class="label" for="eLiters">Liter</label>
+              <input id="eLiters" type="number" class="field" step="0.1" placeholder="10.5" required>
+            </div>
+            <div>
+              <label class="label" for="eCost">Total Biaya (Rp)</label>
+              <input id="eCost" type="number" class="field" placeholder="150000" required>
+            </div>
+            <div>
+              <label class="label" for="eDate">Tanggal</label>
+              <input id="eDate" type="date" class="field" required>
+            </div>
+          </div>
+          <div id="expenseError" class="error-msg hidden"></div>
+          <button type="submit" id="expenseSubmitBtn" class="btn-primary">Simpan</button>
+        </form>
+      </div>
+
+      <!-- Expense List -->
+      <div style="background: white; padding: 1.5rem; border-radius: 0.75rem;">
+        <h3 style="font-weight: 600; margin-bottom: 1rem;">Riwayat Pengisian</h3>
+        <div id="expenseList"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Auth Modal -->
+  <div id="authModal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <h3 id="authModalTitle" style="font-size: 1.25rem; font-weight: bold;">Login</h3>
+        <button id="authModalClose" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+      </div>
+      <form id="authForm">
+        <input type="hidden" id="authMode" value="login">
+        <div style="margin-bottom: 1rem;">
+          <label class="label" for="authEmail">Email</label>
+          <input id="authEmail" type="email" class="field" required>
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <label class="label" for="authPassword">Password</label>
+          <input id="authPassword" type="password" class="field" required>
+        </div>
+        <div id="authError" class="error-msg hidden"></div>
+        <button type="submit" id="authSubmitBtn" class="btn-primary" style="width: 100%; margin-top: 1rem;">Login</button>
+      </form>
+      <div id="authToggle" style="text-align: center; margin-top: 1rem; font-size: 0.875rem;">
+        Belum punya akun? <a href="#" id="authToggleLink" style="color: var(--bordeaux); font-weight: 600;">Register</a>
+      </div>
+    </div>
+  </div>
+
+  <div id="authModalOverlay" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 49;"></div>
+
+  <script src="/static/app.js?v=4"></script>
+</body>
+</html>
