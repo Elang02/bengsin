@@ -1,8 +1,12 @@
 {
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/(auth|garage|expenses|cities|presets|fuel-prices|health|docs|openapi.json)(.*)",
       "destination": "/api/index"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/public/$1"
     }
   ]
 }
