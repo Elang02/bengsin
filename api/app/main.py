@@ -1,21 +1,30 @@
 # app/main.py
 import logging
 from pathlib import Path
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from .database import engine, Base
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import auth, garage, expenses, brands, vehicles
 
 logger = logging.getLogger("uvicorn.error")
 
-# Buat tabel jika belum ada (skema Supabase sudah ada, ini idempotent)
-Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Bengsin API - Monolithic")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: create tables
+    try:
+        from .database import engine, Base
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables created/verified")
+    except Exception as e:
+        logger.warning(f"Database setup skipped: {e}")
+    yield
 
-# Konfigurasi CORS (optional untuk same-origin tapi ga masalah)
+
+app = FastAPI(title="Bengsin API - Monolithic", lifespan=lifespan)
+
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -24,7 +33,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# DAFTARKAN ROUTER MODULAR
+# Register routers
+from .routers import auth, garage, expenses, brands, vehicles
 app.include_router(auth.router)
 app.include_router(garage.router)
 app.include_router(expenses.router)
@@ -35,9 +45,7 @@ app.include_router(vehicles.router)
 frontend_dir = Path(__file__).parent.parent.parent / "bengsin-frontend"
 if frontend_dir.exists():
     app.mount("/static", StaticFiles(directory=str(frontend_dir)), name="static")
-    logger.info(f"✅ Serving frontend from: {frontend_dir}")
-else:
-    logger.warning(f"⚠️ Frontend directory not found: {frontend_dir}")
+    logger.info(f"Serving frontend from: {frontend_dir}")
 
 
 # Serve frontend at root
@@ -46,7 +54,7 @@ async def root():
     frontend_index = Path(__file__).parent.parent.parent / "bengsin-frontend" / "index.html"
     if frontend_index.exists():
         return str(frontend_index)
-    return {"error": "Frontend not found"}
+    return {"error": "Frontend not found", "checked": str(frontend_index)}
 
 
 # Health check
