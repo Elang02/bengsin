@@ -15,6 +15,7 @@ async def lifespan(app: FastAPI):
     # Startup: create tables
     try:
         from .database import engine, Base
+        from . import models  # Ensure all models are registered
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables created/verified")
     except Exception as e:
