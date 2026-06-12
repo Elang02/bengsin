@@ -275,7 +275,7 @@ function renderSearchResults() {
     <div class="card-sm cursor-pointer hover:bg-gray-50" onclick="selectVehicleForEstimate('${p.id}')">
       <div class="flex justify-between items-center">
         <div>
-          <div class="text-sm font-semibold">${p.brand} ${p.model}</div>
+          <div class="text-sm font-semibold">${p.brand} ${p.model}${p.trim_variant ? ' ' + p.trim_variant : ''}</div>
           <div class="text-xs opacity-70">${p.vehicle_type === 'Car' ? 'Mobil' : 'Motor'} • ${p.kmpl} km/L • Min. ${p.min_octane} oktan</div>
         </div>
         <div class="text-xs opacity-60">→</div>
@@ -494,7 +494,7 @@ function renderComparisonSearch() {
   
   container.innerHTML = filtered.map(p => `
     <div class="card-sm cursor-pointer hover:bg-gray-50" onclick="selectVehicleForEstimate('${p.id}')">
-      <div class="text-sm font-semibold">${p.brand} ${p.model}</div>
+      <div class="text-sm font-semibold">${p.brand} ${p.model}${p.trim_variant ? ' ' + p.trim_variant : ''}</div>
       <div class="text-xs opacity-70">${p.vehicle_type === 'Car' ? 'Mobil' : 'Motor'} • ${p.kmpl} km/L • Min. ${p.min_octane} oktan</div>
     </div>
   `).join("");
