@@ -333,10 +333,10 @@ function renderSingleVehicleCost() {
   const monthlyKm = distance * roundTrip * workdaysMonth;
   const monthlyLiters = monthlyKm / v.kmpl;
   
-  // Find cheapest fuel that meets octane requirement
+  // Find cheapest fuel that matches engine type and meets octane requirement
   const suitableFuels = state.fuelPrices.filter(f => 
     f.city_id === state.selectedCity.id &&
-    f.octane_rating >= v.min_octane
+    fuelMatchesVehicle(f, v)
   );
   
   if (suitableFuels.length === 0) {
@@ -402,7 +402,7 @@ function startComparison() {
   
   const suitableFuels = state.fuelPrices.filter(f => 
     f.city_id === state.selectedCity.id &&
-    f.octane_rating >= v.min_octane
+    fuelMatchesVehicle(f, v)
   );
   
   if (suitableFuels.length === 0) return;
@@ -547,7 +547,7 @@ function renderComparison() {
     const monthlyLiters = monthlyKm / v.kmpl;
     const suitableFuels = state.fuelPrices.filter(f => 
       f.city_id === state.selectedCity.id &&
-      f.octane_rating >= v.min_octane
+      fuelMatchesVehicle(f, v)
     );
     if (suitableFuels.length === 0) return null;
     const cheapestFuel = suitableFuels.sort((a, b) => a.price - b.price)[0];
@@ -612,6 +612,14 @@ function renderComparison() {
   
   result.classList.remove("hidden");
   $("singleVehicleCost").classList.add("hidden");
+}
+
+function fuelMatchesVehicle(f, v) {
+  // Diesel cars use diesel fuel only; gasoline/hybrid use gasoline gated by octane.
+  const engine = (v.engine_type || "GASOLINE").toUpperCase();
+  if (engine === "DIESEL") return f.fuel_type === "diesel";
+  if (engine === "ELECTRIC") return false; // no liquid fuel
+  return f.fuel_type === "gasoline" && f.octane_rating >= v.min_octane;
 }
 
 function getFuelPrice(octane) {
@@ -717,11 +725,11 @@ function populateFuelDropdown() {
   const vehicle = state.vehicles.find(v => v.id === vehicleId);
   if (!vehicle) return;
   
-  // Filter fuel prices by min octane and current city
+  // Filter fuel prices by engine type / octane and current city
   const currentCityName = state.selectedCity?.name || 'Jakarta';
   const currentCityId = state.selectedCity?.id || 'jkt';
   const compatibleFuels = state.fuelPrices.filter(f => 
-    f.octane_rating >= vehicle.min_octane &&
+    fuelMatchesVehicle(f, vehicle) &&
     f.city_id === currentCityId
   );
   
@@ -769,6 +777,27 @@ function autoCalculateCost() {
   // Calculate total cost
   const totalCost = Math.round(liters * fuelPrice.price);
   costInput.value = totalCost;
+}
+
+function autoCalculateLiters() {
+  const fuelSelect = $("eFuelType");
+  const litersInput = $("eLiters");
+  const costInput = $("eCost");
+  
+  if (!fuelSelect || !litersInput || !costInput) return;
+  
+  const fuelPriceId = parseInt(fuelSelect.value);
+  const cost = parseFloat(costInput.value);
+  
+  if (!fuelPriceId || !cost || isNaN(cost)) return;
+  
+  // Find fuel price
+  const fuelPrice = state.fuelPrices.find(f => f.id === fuelPriceId);
+  if (!fuelPrice || !fuelPrice.price) return;
+  
+  // Convert money spent -> liters (people refuel by Rupiah, not liters)
+  const liters = cost / fuelPrice.price;
+  litersInput.value = liters.toFixed(2);
 }
 
 function renderExpenseList() {
@@ -988,6 +1017,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // Auto-calculate total cost when liters or fuel type changes
   $("eLiters").addEventListener("input", autoCalculateCost);
   $("eFuelType").addEventListener("change", autoCalculateCost);
+  // Auto-calculate liters when total cost is entered (people refuel by Rupiah)
+  $("eCost").addEventListener("input", autoCalculateLiters);
   
   // Vehicle form toggle
   $("toggleVehicleFormBtn").onclick = () => {
