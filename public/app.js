@@ -1060,9 +1060,13 @@ document.addEventListener("DOMContentLoaded", () => {
   $("toggleVehicleFormBtn").onclick = () => {
     const form = $("vehicleForm");
     form.classList.toggle("hidden");
-    $("toggleVehicleFormBtn").textContent = form.classList.contains("hidden") 
-      ? "+ Tambah Kendaraan" 
-      : "- Tutup Form";
+    const isOpen = !form.classList.contains("hidden");
+    $("toggleVehicleFormBtn").textContent = isOpen
+      ? "- Tutup Form"
+      : "+ Tambah Kendaraan";
+    // When opening, pre-fill brands for the default vehicle type so the
+    // brand dropdown isn't empty before the user touches the type select.
+    if (isOpen) populateBrandDropdown($("vType").value);
   };
   
   $("cancelVehicleFormBtn").onclick = () => {
