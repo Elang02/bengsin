@@ -310,6 +310,9 @@ function selectVehicleForEstimate(presetId) {
     // First vehicle selection
     state.selectedVehicleA = preset;
     state.selectedVehicleB = null;
+    // Hide vehicle picker so user can focus on trip params
+    const picker = $("vehiclePickerSection");
+    if (picker) picker.classList.add("hidden");
     renderSingleVehicleCost();
   }
 }
@@ -376,6 +379,9 @@ function renderSingleVehicleCost() {
       
       <button onclick="startComparison()" class="btn-primary w-full">
         Bandingkan dengan Kendaraan Lain
+      </button>
+      <button onclick="resetComparison()" class="btn-secondary w-full mt-2">
+        Ganti Kendaraan
       </button>
     </div>
   `;
@@ -507,6 +513,9 @@ function resetComparison() {
   window.isSelectingForComparison = false;
   $("comparisonResult").classList.add("hidden");
   $("singleVehicleCost").classList.add("hidden");
+  // Show vehicle picker again
+  const picker = $("vehiclePickerSection");
+  if (picker) picker.classList.remove("hidden");
   $("vehicleSearch").value = "";
   renderSearchResults();
   $("vehicleSearch").focus();
