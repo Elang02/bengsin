@@ -656,6 +656,7 @@ async function loadGarageData() {
     state.expenses = expenses;
     
     renderVehicleList();
+    populateCityDropdown();
     populateVehicleDropdown();
     
     // Set expense date to today
@@ -703,6 +704,22 @@ function renderVehicleList() {
   }).join("");
 }
 
+function populateCityDropdown() {
+  const select = $("eCity");
+  if (!select) return;
+  if (!state.cities || state.cities.length === 0) {
+    select.innerHTML = '<option value="">Memuat kota...</option>';
+    return;
+  }
+  // Default to globally selected city, else Jakarta, else first
+  const def = state.selectedCity
+    || state.cities.find(c => c.name.toLowerCase().includes('jakarta'))
+    || state.cities[0];
+  select.innerHTML = state.cities.map(c =>
+    `<option value="${c.id}"${def && c.id === def.id ? ' selected' : ''}>${c.name}</option>`
+  ).join("");
+}
+
 function populateVehicleDropdown() {
   const select = $("eVehicle");
   if (!select) return;
@@ -735,13 +752,17 @@ function populateFuelDropdown() {
   if (!vehicle) return;
   
   // Filter fuel prices by engine type / octane and current city
-  // Fallback: if no city selected yet (e.g. opened garage first), pick a real default
-  let cityObj = state.selectedCity;
-  if (!cityObj && state.cities && state.cities.length) {
-    cityObj = state.cities.find(c => c.name.toLowerCase().includes('jakarta')) || state.cities[0];
+  // City comes from the garage's own city selector (#eCity), falling back
+  // to the global selected city, then a real default.
+  const citySel = $("eCity");
+  let currentCityId = citySel && citySel.value ? citySel.value : null;
+  if (!currentCityId) {
+    let cityObj = state.selectedCity;
+    if (!cityObj && state.cities && state.cities.length) {
+      cityObj = state.cities.find(c => c.name.toLowerCase().includes('jakarta')) || state.cities[0];
+    }
+    currentCityId = cityObj?.id || (state.fuelPrices[0] && state.fuelPrices[0].city_id);
   }
-  const currentCityName = cityObj?.name || 'Jakarta';
-  const currentCityId = cityObj?.id || (state.fuelPrices[0] && state.fuelPrices[0].city_id);
   const compatibleFuels = state.fuelPrices.filter(f => 
     fuelMatchesVehicle(f, vehicle) &&
     f.city_id === currentCityId
@@ -1027,6 +1048,7 @@ document.addEventListener("DOMContentLoaded", () => {
   $("vType").addEventListener("change", (e) => populateBrandDropdown(e.target.value));
   $("expenseForm").addEventListener("submit", handleExpenseSubmit);
   $("eVehicle").addEventListener("change", populateFuelDropdown);
+  $("eCity").addEventListener("change", populateFuelDropdown);
   
   // Auto-calculate total cost when liters or fuel type changes
   $("eLiters").addEventListener("input", autoCalculateCost);
