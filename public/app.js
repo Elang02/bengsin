@@ -735,8 +735,13 @@ function populateFuelDropdown() {
   if (!vehicle) return;
   
   // Filter fuel prices by engine type / octane and current city
-  const currentCityName = state.selectedCity?.name || 'Jakarta';
-  const currentCityId = state.selectedCity?.id || 'jkt';
+  // Fallback: if no city selected yet (e.g. opened garage first), pick a real default
+  let cityObj = state.selectedCity;
+  if (!cityObj && state.cities && state.cities.length) {
+    cityObj = state.cities.find(c => c.name.toLowerCase().includes('jakarta')) || state.cities[0];
+  }
+  const currentCityName = cityObj?.name || 'Jakarta';
+  const currentCityId = cityObj?.id || (state.fuelPrices[0] && state.fuelPrices[0].city_id);
   const compatibleFuels = state.fuelPrices.filter(f => 
     fuelMatchesVehicle(f, vehicle) &&
     f.city_id === currentCityId
