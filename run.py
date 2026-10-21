@@ -42,7 +42,7 @@ def main():
     
     # Get root directory
     root_dir = Path(__file__).parent.absolute()
-    backend_dir = root_dir / "bengsin-backend"
+    backend_dir = root_dir / "api"
     frontend_dir = root_dir / "bengsin-frontend"
     venv_python = root_dir / "venv" / "bin" / "python"
     
