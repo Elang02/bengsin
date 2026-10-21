@@ -5,12 +5,15 @@ resmi MyPertamina lewat GitHub Actions tiap jam. Feed dipilih, bukan pertamina.c
 langsung, karena situs resmi memakai Blazor yang tidak bisa dibaca tanpa browser,
 sedangkan fungsi Vercel hanya punya 10 detik dan tanpa Chromium.
 
-Payload v1/nasional.json per provinsi: {province, province_slug, products: [{product,
-price_rupiah, updatedDate}], synced_at, pertamina_updated_at}.
+Tiga batasan skema menentukan bentuk modul ini:
 
-Pemetaan provinsi sebagai kota, bukan 31 kota seed lama. Id kota memakai slug
-sehingga sinkronisasi idempoten tanpa bergantung pada isi seed dan bisa berjalan di
-deployment mana pun.
+1. Kolom cities.id hanya String(10), sedangkan slug provinsi bisa 26 karakter
+   ("free-trade-zone-ftz-sabang"). Id kota diturunkan dari hash slug,
+   "p" + 8 heksadesimal, sehingga deterministik dan tidak pernah terpotong.
+2. Nama provinsi disimpan pada kolom nama, jadi UI tetap menampilkan teks asli.
+3. Sinkronisasi memakai tiga query: satu baca kota, satu baca harga, satu commit.
+   Versi pertama menembak satu SELECT per baris dan butuh 71 detik di Supabase
+   sampai Vercel memutus fungsi dengan 502.
 
 Jalankan manual:
     .venv/bin/python -c "from app.services.fuel_sync import run_sync; print(run_sync())"
@@ -18,6 +21,8 @@ Jalankan manual:
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import urllib.request
 from decimal import Decimal
@@ -30,8 +35,7 @@ FUEL_PRICE_URL = os.getenv(
     "https://raw.githubusercontent.com/nasgunawann/bensin-api/main/v1/nasional.json",
 )
 
-# (produk, fuel_type, oktan). Oktan untuk solar memakai angka setana pada kolom
-# yang sama agar tabel tidak perlu kolom baru.
+# (fuel_type, oktan). Solar memakai angka setana pada kolom oktan agar skema tetap.
 PRODUCT_MAP = {
     "PERTALITE": ("gasoline", 88),
     "PERTAMAX": ("gasoline", 92),
@@ -43,6 +47,11 @@ PRODUCT_MAP = {
     "PERTAMINA BIOSOLAR NON SUBSIDI": ("diesel", 51),
     "PERTAMINA BIOSOLAR SUBSIDI": ("diesel", 51),
 }
+
+
+def _city_id(slug: str) -> str:
+    """Id 9 karakter, plafon kolom 10 karakter."""
+    return "p" + hashlib.md5(slug.encode()).hexdigest()[:8]
 
 
 def _parse_price(raw) -> Decimal | None:
@@ -58,57 +67,59 @@ def _parse_price(raw) -> Decimal | None:
 
 
 def _fetch_payload(url: str) -> dict:
-    req = urllib.request.Request(
-        url, headers={"User-Agent": "bengsin-fuel-sync/1.0"}
-    )
-    with urllib.request.urlopen(req, timeout=20) as resp:
-        import json
-
+    req = urllib.request.Request(url, headers={"User-Agent": "bengsin-fuel-sync/1.0"})
+    with urllib.request.urlopen(req, timeout=15) as resp:
         return json.loads(resp.read().decode())
 
 
 def run_sync(url: str = FUEL_PRICE_URL) -> dict:
     payload = _fetch_payload(url)
     provinces = payload.get("provinces") or []
-    db = SessionLocal()
-    cities_written = prices_written = prices_changed = 0
-    try:
-        for prov in provinces:
-            slug = (prov.get("province_slug") or "").strip()
-            name = (prov.get("province") or "").strip()
-            if not slug or not name:
-                continue
 
-            city = db.query(City).filter(City.id == slug).first()
+    wanted: list[tuple[str, str, list[dict]]] = []
+    for prov in provinces:
+        slug = (prov.get("province_slug") or "").strip()
+        name = (prov.get("province") or "").strip()
+        if slug and name:
+            wanted.append((_city_id(slug), name, prov.get("products") or []))
+
+    db = SessionLocal()
+    try:
+        ids = [cid for cid, _, _ in wanted]
+        known_cities = {c.id: c for c in db.query(City).filter(City.id.in_(ids)).all()}
+        known_prices = {
+            (p.city_id, p.name): p
+            for p in db.query(FuelPrice).filter(FuelPrice.city_id.in_(ids)).all()
+        } if ids else {}
+
+        cities_new = cities_renamed = rows_new = rows_changed = 0
+        for cid, name, products in wanted:
+            city = known_cities.get(cid)
             if city is None:
-                db.add(City(id=slug, name=name))
-                cities_written += 1
+                db.add(City(id=cid, name=name))
+                cities_new += 1
             elif city.name != name:
                 city.name = name
+                cities_renamed += 1
 
-            for entry in prov.get("products") or []:
+            for entry in products:
                 product = (entry.get("product") or "").strip().upper()
                 meta = PRODUCT_MAP.get(product)
                 price = _parse_price(entry.get("price_rupiah"))
                 if meta is None or price is None:
                     continue
                 fuel_type, octane = meta
-
-                row = (
-                    db.query(FuelPrice)
-                    .filter(FuelPrice.city_id == slug, FuelPrice.name == product)
-                    .first()
-                )
+                row = known_prices.get((cid, product))
                 if row is None:
                     db.add(FuelPrice(
-                        city_id=slug, brand="Pertamina", name=product,
+                        city_id=cid, brand="Pertamina", name=product,
                         fuel_type=fuel_type, octane_rating=octane, price=price,
                     ))
-                    prices_written += 1
+                    rows_new += 1
                 else:
                     if row.price != price:
                         row.price = price
-                        prices_changed += 1
+                        rows_changed += 1
                     row.fuel_type = fuel_type
                     row.octane_rating = octane
         db.commit()
@@ -117,10 +128,12 @@ def run_sync(url: str = FUEL_PRICE_URL) -> dict:
         raise
     finally:
         db.close()
+
     return {
-        "provinces": len(provinces),
-        "cities_upserted": cities_written,
-        "price_rows": prices_written,
-        "price_changed": prices_changed,
+        "provinces": len(wanted),
+        "cities_new": cities_new,
+        "cities_renamed": cities_renamed,
+        "rows_new": rows_new,
+        "rows_changed": rows_changed,
         "source": url,
     }
