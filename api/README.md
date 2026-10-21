@@ -174,7 +174,7 @@ Proprietary - Bengsin Project
 
 ## 👥 Author
 
-Developed by Elang with Hermes AI Agent
+Developed by Elang
 
 
 ## Harga BBM harian

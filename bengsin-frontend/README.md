@@ -154,4 +154,4 @@ allow_origins=["https://bengsin.com"]  # Your frontend domain
 
 ## 👥 Author
 
-Developed by Elang with Hermes AI Agent
+Developed by Elang
