@@ -6,6 +6,12 @@
       "use": "@vercel/python"
     }
   ],
+  "crons": [
+    {
+      "path": "/cron/fuel-sync",
+      "schedule": "0 22 * * *"
+    }
+  ],
   "routes": [
     {
       "src": "/(.*)",

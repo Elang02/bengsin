@@ -175,3 +175,18 @@ Proprietary - Bengsin Project
 ## 👥 Author
 
 Developed by Elang with Hermes AI Agent
+
+
+## Harga BBM harian
+
+Harga ditarik sekali sehari oleh Vercel Cron ke `GET /cron/fuel-sync`
+(jadwal `0 22 * * *` UTC, 05:00 WIB). Sumbernya feed publik
+`nasgunawann/bensin-api` yang mengambil data MyPertamina tiap jam, karena
+pertamina.com memakai Blazor dan tidak bisa dibaca tanpa browser.
+
+- Isi `CRON_SECRET` di environment Vercel. Tanpa itu endpoint terbuka.
+- `DATABASE_URL` wajib menunjuk Postgres. Berkas SQLite di Vercel hilang setiap
+  invocation, jadi harga yang ditulis ke SQLite tidak akan bertahan.
+- Uji manual: `curl -H "Authorization: Bearer $CRON_SECRET" https://<domain>/cron/fuel-sync`
+- Provinsi disimpan sebagai kota memakai slug (`aceh`, `sumatera-utara`, ...), sehingga
+  sinkronisasi berulang tidak menggandakan baris.

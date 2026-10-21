@@ -34,12 +34,13 @@ app.add_middleware(
 )
 
 # Register routers
-from .routers import auth, garage, expenses, brands, vehicles
+from .routers import auth, garage, expenses, brands, vehicles, cron
 app.include_router(auth.router)
 app.include_router(garage.router)
 app.include_router(expenses.router)
 app.include_router(brands.router)
 app.include_router(vehicles.router)
+app.include_router(cron.router)
 
 # Mount frontend static files
 frontend_dir = Path(__file__).parent.parent.parent / "bengsin-frontend"
