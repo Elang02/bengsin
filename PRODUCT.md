@@ -16,7 +16,9 @@ a fleet manager; there is no dashboard, no report export, no team.
 ## Surfaces
 
 1. **Hitung** — the calculator. No account needed. City, vehicle, distance, workdays,
-   result, price board. This is the product.
+   result, price board, and a 3D comparison stage where the chosen vehicles stand side by
+   side and can be turned by dragging. The stage is decoration with a job: it makes the
+   two numbers feel like two vehicles.
 2. **Garage** — vehicles and fill-ups for signed-in users. Ledger, not analytics.
 3. **Auth** — a modal dialog over the current page, never a separate route.
 
@@ -48,6 +50,10 @@ a fleet manager; there is no dashboard, no report export, no team.
 - `engine_type` accepts only `GASOLINE` and `DIESEL`. Electric vehicles have no fuel
   price to compare, so they are not offered.
 - A fill-up has no date input, because the API has none.
+- The 3D models are a small CC0 set (sedan, SUV, sports car, motorbike), picked by
+  vehicle type and, for cars, by a hash of the model name. They are not a catalogue: a
+  Toyota Avanza may appear as the sedan model and a Daihatsu Rocky as the SUV. The stage
+  never claims to show your exact car, and the copy never says it does.
 - Prices are a mirror, not a live Pertamina feed. The UI says "disinkronkan tiap hari"
   and never claims real-time.
 

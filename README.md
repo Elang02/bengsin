@@ -13,7 +13,9 @@ Situs: https://bengsin.vercel.app
 **Hitung tanpa akun.** Kota, kendaraan, jarak sekali jalan, dan hari kerja per minggu.
 Jaraknya diatur dengan menggeser mobil di lintasan — atau mengetik angkanya kalau butuh
 presisi. Hasilnya: kilometer sebulan, liter yang dibutuhkan, dan biaya rupiah. Dua
-kendaraan bisa dibandingkan berdampingan, lengkap dengan selisih per bulan.
+kendaraan bisa dibandingkan berdampingan, lengkap dengan selisih per bulan — dan sejak
+pembaruan terakhir, keduanya berdiri di atas panggung 3D: mobil ya mobil, motor ya motor,
+bisa diputar dengan menggeser.
 
 **Papan harga.** Harga Pertamina, BP, dan Shell per liter di kota yang dipilih, urut dari
 termurah, ditandai mana yang dipakai kendaraanmu dan mana yang tidak cocok. Tiap baris
@@ -110,6 +112,9 @@ public/
   index.html          satu halaman, dua tab
   styles.css          token, layout, komponen
   app.js              state, render, panggilan API
+  scene.js            panggung 3D perbandingan (three.js, dimuat saat dipakai)
+  models/             GLB kendaraan, CC0 Quaternius
+  vendor/             three.js 0.169.0 + GLTFLoader, di-host sendiri
   fonts/              Saira variable, di-host sendiri
   favicon.svg
 docs/screenshot.jpg
@@ -119,6 +124,13 @@ vercel.json           build Python, rewrite, jadwal cron
 run.py                launcher lokal
 ```
 
+## Kredit
+
+- **three.js** 0.169.0, MIT — `public/vendor/`.
+- **Mobil dan motor**: [Quaternius](https://quaternius.com) "Cars Bundle", CC0, diunduh
+  lewat [poly.pizza](https://poly.pizza) dan disimpan di `public/models/`.
+- **Saira** (Omnibus-Type), SIL Open Font License — `public/fonts/`.
+
 ## Lisensi
 
-Proprietary, proyek pribadi.
+Proprietary, proyek pribadi. Aset pihak ketiga tetap memakai lisensinya masing-masing.

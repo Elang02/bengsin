@@ -150,7 +150,6 @@
 
           <div class="readout__body" id="roBody">
             <dl class="chain" id="roChain"></dl>
-            <div class="cmp" id="roCmp" hidden></div>
             <div class="readout__foot">
               <button class="btn btn--line btn--sm btn--full" type="button" id="copyBtn">Salin ringkasan</button>
             </div>
@@ -159,6 +158,17 @@
       </div>
 
       <div class="scrim" id="roScrim" hidden></div>
+
+      <section class="wrap duel" id="duel" aria-labelledby="duelTitle" hidden>
+        <div class="duel__stage">
+          <canvas id="stageCanvas" aria-label="Kendaraan A dan B, geser untuk memutar"></canvas>
+          <p class="duel__hint" id="duelHint">Geser untuk memutar</p>
+        </div>
+        <div class="duel__side">
+          <p class="duel__lab" id="duelTitle">Perbandingan</p>
+          <div id="duelRows"></div>
+        </div>
+      </section>
 
       <section class="wrap board" id="board" aria-labelledby="boardTitle">
         <div class="board__head">
@@ -346,6 +356,7 @@
     <p class="wrap noscript">Bengsin butuh JavaScript untuk menghitung. Aktifkan dulu di pengaturan browser.</p>
   </noscript>
 
+  <script type="importmap">{"imports":{"three":"/vendor/three.module.min.js"}}</script>
   <script src="/app.js" defer></script>
 </body>
 </html>

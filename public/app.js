@@ -140,6 +140,43 @@ function signOut() {
 // ---------------------------------------------------------------------------
 
 const isMotor = (v) => /^mot/i.test(v.vehicle_type || "");
+
+// ---------------------------------------------------------------------------
+// 3D stage (loaded only when a comparison appears)
+// ---------------------------------------------------------------------------
+let stage = null;
+
+async function startStage(a, b) {
+  const canvas = $("#stageCanvas");
+  const duel = $("#duel");
+  if (!canvas || !duel) return;
+
+  if (!stage) {
+    if (duel.dataset.failed === "true") return;
+    try {
+      const mod = await import("./scene.js");
+      stage = mod.createStage(canvas);
+      duel.dataset.ready = "true";
+    } catch (err) {
+      duel.dataset.failed = "true";
+      return;
+    }
+  }
+
+  const seedOf = (v) => [...(v.model || "")].reduce((n, ch) => n + ch.charCodeAt(0), 0);
+  const kit = (v) => (isMotor(v) ? ["moto"] : ["car", "suv", "sport"]);
+  await stage.prepare(b ? [...kit(a), ...kit(b)] : kit(a));
+  stage.setVehicles(
+    { motor: isMotor(a), seed: seedOf(a) },
+    b ? { motor: isMotor(b), seed: seedOf(b) } : null,
+  );
+  stage.setSpeed(S.distance);
+  stage.start();
+}
+
+function stopStage() {
+  if (stage) stage.stop();
+}
 const typeLabel = (v) => (isMotor(v) ? "Motor" : "Mobil");
 const vehicleName = (v) => [v.brand, v.model].filter(Boolean).join(" ").trim() || v.model || "Kendaraan";
 const vehicleFull = (v) => [vehicleName(v), v.trim_variant].filter(Boolean).join(" ");
@@ -160,6 +197,8 @@ function prettyFuelName(name) {
 }
 
 // Two seed sets overlap: keep one row per product, preferring mixed-case names.
+const BRAND_ORDER = { Pertamina: 0, BP: 1, Shell: 2 };
+
 function cityFuels() {
   if (!S.city) return [];
   const rows = S.prices.filter((p) => p.city_id === S.city.id);
@@ -171,10 +210,9 @@ function cityFuels() {
     const prevMixed = prev && prev.name !== prev.name.toUpperCase() ? 1 : 0;
     if (!prev || (mixed && !prevMixed)) seen.set(key, row);
   }
-  const brandOrder = { Pertamina: 0, BP: 1, Shell: 2 };
   return Array.from(seen.values()).sort((x, y) => {
-    const bx = brandOrder[x.brand] ?? 9;
-    const by = brandOrder[y.brand] ?? 9;
+    const bx = BRAND_ORDER[x.brand] ?? 9;
+    const by = BRAND_ORDER[y.brand] ?? 9;
     if (bx !== by) return bx - by;
     if (x.brand !== y.brand) return x.brand.localeCompare(y.brand);
     return Number(x.price) - Number(y.price);
@@ -235,7 +273,6 @@ function renderReadout() {
   const veh = $("#roVeh");
   const sub = $("#roSub");
   const chain = $("#roChain");
-  const cmp = $("#roCmp");
 
   if (!a) {
     veh.textContent = "Belum ada kendaraan";
@@ -243,7 +280,7 @@ function renderReadout() {
     $("#copyBtn").disabled = true;
     sub.textContent = S.city ? `Harga ${S.city.name} siap dipakai.` : "Pilih kota dan kendaraan.";
     chain.innerHTML = "";
-    cmp.hidden = true;
+    renderDuel(a, ca, null, null);
     return;
   }
 
@@ -255,7 +292,7 @@ function renderReadout() {
       ? `Tidak ada BBM di ${S.city?.name || "kota ini"} yang cocok. Coba kota lain.`
       : "Isi jarak untuk menghitung.";
     chain.innerHTML = "";
-    cmp.hidden = true;
+    renderDuel(a, ca, b, null);
     return;
   }
 
@@ -272,12 +309,33 @@ function renderReadout() {
     ["BBM", `${prettyFuelName(ca.fuel.name)} · ${rp(ca.fuel.price)}/L`],
   ].map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("");
 
-  if (!b || !cb || cb.cost === null) {
-    cmp.hidden = true;
+  renderDuel(a, ca, b, cb);
+}
+
+// The comparison lives in its own dark band under the form, with a 3D stage.
+function renderDuel(a, ca, b, cb) {
+  const duel = $("#duel");
+  const rowsEl = $("#duelRows");
+  const hint = $("#duelHint");
+
+  if (!a || ca.cost === null) {
+    duel.hidden = true;
+    stopStage();
     return;
   }
 
-  cmp.hidden = false;
+  duel.hidden = false;
+  $("#duelTitle").textContent = b && cb && cb.cost !== null ? "Perbandingan" : "Kendaraan";
+
+  // One vehicle is still worth showing: the stage is the reason to come back.
+  if (!b || !cb || cb.cost === null) {
+    rowsEl.innerHTML =
+      `<p class="cmp__empty">Pilih kendaraan kedua untuk melihat selisih biaya bulanan.<br><span>Klik kendaraan lain di daftar, atau simpan satu dari Garage.</span></p>`;
+    hint.hidden = !window.matchMedia("(pointer: fine)").matches;
+    startStage(a, null);
+    return;
+  }
+
   const rows = [
     { key: "A", v: a, c: ca },
     { key: "B", v: b, c: cb },
@@ -288,9 +346,9 @@ function renderReadout() {
   const pct = max > 0 ? (diff / max) * 100 : 0;
   const winnerName = vehicleFull(winner === "A" ? a : b);
 
-  cmp.innerHTML =
+  rowsEl.innerHTML =
     rows.map((r) => `
-      <div class="cmp__row ${winner === r.key ? "cmp__row--win" : ""}">
+      <div class="cmp__row ${winner === r.key ? "cmp__row--win" : ""}" data-slot="${r.key.toLowerCase()}">
         <div class="cmp__top">
           <span class="cmp__name">${r.key} · ${vehicleFull(r.v)}</span>
           <span class="cmp__val">${rp(r.c.cost)}</span>
@@ -298,6 +356,9 @@ function renderReadout() {
         <div class="cmp__bar"><div class="cmp__fill" style="width:${(r.c.cost / max) * 100}%"></div></div>
       </div>`).join("") +
     `<p class="cmp__note"><span class="cmp__win">${winnerName} lebih hemat ${rp(diff)}</span> · ${dec(pct)}% per bulan</p>`;
+
+  hint.hidden = !window.matchMedia("(pointer: fine)").matches;
+  startStage(a, b, ca);
 }
 
 function setFigure(text, empty) {
@@ -377,11 +438,25 @@ function renderBoard() {
     return;
   }
 
+  // Within a brand, the fuels this car can actually take come first; a diesel
+  // product topping the list for a petrol car reads as a mistake.
+  const ordered = veh
+    ? rows.slice().sort((x, y) => {
+        const bx = BRAND_ORDER[x.brand] ?? 9;
+        const by = BRAND_ORDER[y.brand] ?? 9;
+        if (bx !== by) return bx - by;
+        const fx = fuelFits(x, veh) ? 0 : 1;
+        const fy = fuelFits(y, veh) ? 0 : 1;
+        if (fx !== fy) return fx - fy;
+        return Number(x.price) - Number(y.price);
+      })
+    : rows;
+
   let lastBrand = null;
   let span = 0;
-  const counts = rows.reduce((acc, f) => ((acc[f.brand] = (acc[f.brand] || 0) + 1), acc), {});
+  const counts = ordered.reduce((acc, f) => ((acc[f.brand] = (acc[f.brand] || 0) + 1), acc), {});
 
-  const body = rows.map((f) => {
+  const body = ordered.map((f) => {
     const fits = veh ? fuelFits(f, veh) : null;
     const isPick = pick && pick.id === f.id;
     const oct = (f.fuel_type || "").toLowerCase() === "diesel" ? "CN " + f.octane_rating : "RON " + f.octane_rating;
@@ -546,6 +621,7 @@ function updateCar() {
   const km = Math.min(60, Math.max(0, S.distance));
   road.style.setProperty("--p", String(km / 60));
   road.dataset.zero = km === 0 ? "true" : "false";
+  if (stage) stage.setSpeed(km);
 }
 
 function setDays(n) {

@@ -72,6 +72,10 @@ Numbers are always tabular. Money is `Rp 303.448`; litres `30,3`; km/L `14,5`.
   right-aligned. Full width, below the fold.
 - Garage: `380px minmax(0,1fr)` — vehicles left, ledger right. Sections carry a rule
   under their head, not a box.
+- Duel band: full width, between the form and the price board — `minmax(0,1fr) 344px`.
+  Left is the 3D stage, right is the comparison in hairline rows. It appears as soon as
+  one vehicle is chosen (one vehicle: the stage plus a prompt for a second), because the
+  stage is the reason to come back to the page.
 
 ## Components
 
@@ -94,6 +98,16 @@ Numbers are always tabular. Money is `Rp 303.448`; litres `30,3`; km/L `14,5`.
   "dipakai …" note. Incompatible fuels drop to 45 % opacity with a "tidak cocok" note.
   Every compatible row also prints what that fuel would cost this vehicle per month,
   under the price — the table doubles as the "what if I switch" answer.
+- **Duel stage**: a `<canvas>` rendered by three.js, loaded lazily the first time a
+  vehicle is chosen. Two vehicles stand side by side on a faint contact shadow under a
+  pool of canopy light; drag turns the pair (yaw ±, pitch small), and the pair drifts
+  slowly on its own after 2.6 s idle. Body style follows the model name, so two cars
+  never share a silhouette; a motorcycle gets the bike model at 2.15 m against 4.5 m for
+  cars, so the scale difference is real. Cars are oxblood (A) and bone (B); the bars in
+  the right column carry the same two colours, so identity is colour, not the verdict.
+  Authored wheels stay parked — they carry baked orientation and tumble if spun about a
+  guessed axis. If WebGL, the module or a GLB fails, `data-failed="true"` hides the
+  canvas and the comparison still reads.
 - **Docket**: the signed-out garage explains itself as three hairline rows (Kendaraan /
   Riwayat / Ringkasan) beside the notice, never as a feature grid.
 - **Toast**: fixed bottom center, ink ground, 2 s, `role="status"`.
@@ -124,6 +138,11 @@ One easing: `cubic-bezier(.22,.8,.2,1)`, and only transform/opacity move.
 - 240 ms: the figure ticks (`translateY` + opacity) when the number changes.
 - 120–140 ms: press feedback (`scale(.988)` on buttons, `scale(.98)` on chips).
 
+The duel stage runs its own loop: a 150 ms damped yaw follow on drag, a 0.004 m idle
+bob, and the wheel-follow on the road input for the procedural fallback models. The loop
+pauses on `document.hidden` and when the band leaves the viewport, and a single frame is
+drawn on resize. On reduced motion the stage is not started at all.
+
 Nothing animates on load and nothing animates on scroll. `prefers-reduced-motion: reduce`
 collapses every duration to 0.01 ms, which also disables the car's slide — the number
 input remains the way to move it.
@@ -140,4 +159,6 @@ carries 14 px horizontal padding). No other findings as of the last run.
 Cards as page structure, nested cards, eyebrow kickers, numbered sections, one-sided
 border bars, hard offset shadows, gradient text, glass, emoji or unicode as icons, browser
 `alert`/`confirm`, spinners, decorative illustration, a second typeface, rounded corners
-above 3 px (only the auth dialog, at 6 px, is allowed).
+above 3 px (only the auth dialog, at 6 px, is allowed). In the duel band: auto-spin like a
+product viewer, a spin on load, textures or photos behind the vehicles, or a model that
+turns when you drag but never settles.

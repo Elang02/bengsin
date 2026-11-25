@@ -53,9 +53,28 @@
 
 html { color-scheme: light; -webkit-text-size-adjust: 100%; }
 
+/* Paper tooth: a fixed 160px noise tile, barely there, keeps the flats from
+   reading like a vector mock. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0.5;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.22'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+}
+
 body {
   margin: 0;
-  background: var(--paper);
+  background-color: var(--paper);
+  background-image:
+    radial-gradient(1100px 460px at 50% -8%, rgba(255, 255, 255, 0.72), transparent 68%),
+    radial-gradient(760px 520px at 84% -4%, rgba(139, 21, 56, 0.045), transparent 64%),
+    radial-gradient(900px 640px at 8% 22%, rgba(255, 255, 255, 0.35), transparent 70%);
+  background-attachment: fixed, fixed, fixed;
   color: var(--ink);
   font-family: "Saira", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 0.9375rem;
@@ -868,43 +887,119 @@ input[type="search"]::-webkit-search-cancel-button { display: none; }
 }
 .readout .btn--line:hover { background: rgba(244, 240, 228, 0.08); border-color: var(--dim); }
 
-/* comparison inside the panel */
+/* ---------- comparison band ---------- */
 
-.cmp { margin-top: 18px; }
-.cmp__row { margin-bottom: 12px; }
+.duel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 344px;
+  gap: 40px;
+  align-items: center;
+  margin-top: 44px;
+  padding-top: 26px;
+  border-top: 1px solid var(--line-2);
+}
+.duel[hidden] { display: none; }
+
+.duel {
+  scroll-margin-top: 76px;
+}
+.duel__stage {
+  position: relative;
+  cursor: grab;
+  touch-action: pan-y;
+  isolation: isolate;
+}
+/* a pool of canopy light for the vehicles to sit in */
+.duel__stage::before {
+  content: "";
+  position: absolute;
+  inset: -4% 2% 4%;
+  z-index: -1;
+  border-radius: 50%;
+  background:
+    linear-gradient(to top, rgba(26, 27, 23, 0.05), rgba(26, 27, 23, 0) 46%),
+    radial-gradient(52% 62% at 50% 30%, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0) 70%);
+  pointer-events: none;
+}
+.duel__stage.is-dragging { cursor: grabbing; }
+#stageCanvas {
+  display: block;
+  width: 100%;
+  height: 250px;
+}
+.duel__stage:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 4px;
+}
+.duel__hint {
+  position: absolute;
+  left: 2px;
+  bottom: 2px;
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--muted);
+  letter-spacing: 0.01em;
+}
+.duel[data-failed="true"] .duel__hint { display: none; }
+.duel[data-failed="true"] #stageCanvas { display: none; }
+
+.duel__side {
+  border-left: 1px solid var(--line);
+  padding-left: 30px;
+}
+.duel__lab {
+  margin: 0 0 18px;
+  font-size: 0.75rem;
+  font-weight: 560;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.cmp__row { margin-bottom: 15px; }
+.cmp__row:last-of-type { margin-bottom: 0; }
 .cmp__top {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 10px;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
-.cmp__name { color: var(--dim); }
-.cmp__val { font-weight: 540; letter-spacing: -0.004em; }
+.cmp__name { color: var(--muted); }
+.cmp__val { font-weight: 540; letter-spacing: -0.004em; font-variant-numeric: tabular-nums; }
 .cmp__bar {
   position: relative;
-  height: 5px;
-  margin-top: 5px;
-  background: rgba(244, 240, 228, 0.12);
+  height: 6px;
+  margin-top: 6px;
+  background: rgba(26, 27, 23, 0.09);
   border-radius: 1px;
   overflow: hidden;
 }
 .cmp__fill {
   position: absolute;
   inset: 0 auto 0 0;
-  background: rgba(244, 240, 228, 0.5);
+  background: #8f9285;
   transition: width 320ms var(--ease);
 }
-.cmp__row--win .cmp__fill { background: var(--panel-ink); }
-.cmp__note {
-  margin-top: 6px;
-  padding-top: 10px;
-  border-top: 1px solid var(--hair);
-  font-size: 0.8125rem;
-  color: var(--panel-ink);
+/* bars carry identity (A is the oxblood car), not the verdict */
+.cmp__row[data-slot="a"] .cmp__fill { background: var(--brand); }
+.cmp__row--win .cmp__val { color: var(--ink); font-weight: 600; }
+.cmp__empty {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: var(--ink-2);
 }
-.cmp__note strong { font-weight: 620; }
-.cmp__win { color: #b9e3c6; font-weight: 560; }
+.cmp__empty span { color: var(--muted); }
+.cmp__note {
+  margin: 20px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+.cmp__win { color: var(--ok); font-weight: 560; }
 
 /* ---------- price board ---------- */
 
@@ -1325,6 +1420,15 @@ input[type="search"]::-webkit-search-cancel-button { display: none; }
 
   .board { margin-top: 40px; }
   .toast { bottom: 92px; }
+
+  .duel { grid-template-columns: minmax(0, 1fr); gap: 26px; margin-top: 36px; }
+  .duel__side {
+    border-left: 0;
+    padding-left: 0;
+    border-top: 1px solid var(--line);
+    padding-top: 22px;
+  }
+  #stageCanvas { height: 240px; }
 }
 
 @media (max-width: 420px) {
@@ -1346,6 +1450,7 @@ input[type="search"]::-webkit-search-cancel-button { display: none; }
   .ftable tbody tr.is-group td { border-top: 1px solid var(--line-2); }
   .hist__row { grid-template-columns: 46px minmax(0, 1fr) auto auto; }
   .hist__vol { display: none; }
+  #stageCanvas { height: 200px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
