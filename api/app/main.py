@@ -51,13 +51,19 @@ def health():
 
 # Frontend: the whole app lives in /public and is served from the same origin,
 # so /app.js, /styles.css and /fonts/* resolve without a build step.
-FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "public"
+# Two layouts: api/public/ when the bundle carries the assets itself, and the
+# repo-root public/ for local runs.
+_HERE = Path(__file__).resolve()
+FRONTEND_DIR = next(
+    (p for p in (_HERE.parent.parent / "public", _HERE.parent.parent.parent / "public") if p.is_dir()),
+    None,
+)
 
-if FRONTEND_DIR.is_dir():
+if FRONTEND_DIR:
     logger.info("Serving frontend from: %s", FRONTEND_DIR)
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
 else:
 
     @app.get("/")
     async def root():
-        return {"error": "Frontend not found", "checked": str(FRONTEND_DIR)}
+        return {"error": "Frontend not found", "checked": str(_HERE.parent.parent / "public")}
