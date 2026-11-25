@@ -1038,7 +1038,7 @@ input[type="search"]::-webkit-search-cancel-button { display: none; }
 .ftable tbody tr { transition: background-color 180ms var(--ease); }
 .ftable tbody tr:first-child td { border-top: 0; }
 .ftable th {
-  padding: 6px 0;
+  padding: 9px 0;
   border-bottom: 1px solid var(--line);
   font-size: 0.75rem;
   font-weight: 520;
@@ -1085,8 +1085,10 @@ input[type="search"]::-webkit-search-cancel-button { display: none; }
 }
 .ftable tr.is-off td { color: #8d9182; }
 .ftable tr.is-off .price { font-weight: 400; }
-.ftable tr.is-pick { background: #eef0e6; }
+/* the brand cell spans the group, so the pick is marked by the note and the weight,
+   not by a band that would start mid-row */
 .ftable tr.is-pick .prod small { color: var(--brand); }
+.ftable tr.is-pick .price { font-weight: 600; }
 
 .board__note {
   margin-top: 12px;
