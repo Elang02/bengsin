@@ -372,13 +372,16 @@ export function createStage(canvas) {
   const root = new THREE.Group();
   scene.add(root);
 
+  // The pair rests three-quarter on, turned so both profiles read at once.
+  const REST_YAW = -0.36;
+
   let slotA = null;
   let slotB = null;
   let fit = null;
   const templates = {};
   let speed = 0;
-  let yaw = -0.5;
-  let yawTarget = -0.5;
+  let yaw = REST_YAW;
+  let yawTarget = REST_YAW;
   let pitch = 0.02;
   let pitchTarget = 0.02;
   let lastInput = 0;
@@ -416,7 +419,7 @@ export function createStage(canvas) {
     const byHeight = size.y / 2 / Math.tan(fov / 2);
     const byWidth = size.x / 2 / (Math.tan(fov / 2) * Math.max(camera.aspect, 0.6));
     // narrow canvases have vertical room to spare, so the pair can sit closer
-    const margin = camera.aspect < 2.2 ? 0.94 : 1.02;
+    const margin = camera.aspect < 2.2 ? 0.8 : 1.02;
     const dist = Math.max(byHeight, byWidth) * margin + size.z / 2;
     camBase.set(center.x * 0.3, center.y + size.y * 0.44 + 0.18, center.z + dist);
     camLook.set(center.x * 0.3, center.y * 0.74, center.z);
@@ -470,12 +473,17 @@ export function createStage(canvas) {
     const wb = span(boxB);
     if (slotA) slotA.position.x = (slotB ? -gap / 2 - wa / 2 : 0) - mid(boxA);
     if (slotB) slotB.position.x = (slotA ? gap / 2 + wb / 2 : 0) - mid(boxB);
-    // measure the vehicles only, so the soft shadows do not zoom the camera out
+    // Measure the vehicles only, so the soft shadows do not zoom the camera out.
+    // Measure them already turned by the resting yaw: a pair seen at an angle
+    // takes up more room than the same pair head-on, and framing the head-on box
+    // pushed the near car past the right edge once the idle turn settled.
     const box = new THREE.Box3();
+    root.rotation.set(0, REST_YAW, 0);
+    root.updateMatrixWorld(true);
     for (const slot of [slotA, slotB]) if (slot) box.expandByObject(slot);
-    fit = box.isEmpty()
-      ? null
-      : { size: box.getSize(new THREE.Vector3()), center: box.getCenter(new THREE.Vector3()) };
+    const size = box.getSize(new THREE.Vector3());
+    size.x *= 1.04; // covers the idle swing without zooming out for a whole car
+    fit = box.isEmpty() ? null : { size, center: box.getCenter(new THREE.Vector3()) };
 
     root.rotation.set(0, 0, 0);
     root.updateMatrixWorld(true);
@@ -577,7 +585,7 @@ export function createStage(canvas) {
     if (!reduce.matches) {
       const idle = now - lastInput > 2600;
       if (idle && !dragging) {
-        yawTarget = -0.36 + Math.sin(now / 4200) * 0.13;
+        yawTarget = REST_YAW + Math.sin(now / 4200) * 0.13;
       }
       yaw += (yawTarget - yaw) * Math.min(1, dt * 7);
       pitch += (pitchTarget - pitch) * Math.min(1, dt * 7);

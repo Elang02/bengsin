@@ -103,6 +103,9 @@ Numbers are always tabular. Money is `Rp 303.448`; litres `30,3`; km/L `14,5`.
   prefiltered studio environment (`PMREMGenerator` over `RoomEnvironment`) under
   ACES tone mapping; drag turns the pair (yaw ±, pitch small), the pair drifts slowly on
   its own after 2.6 s idle, and the camera leans a few centimetres toward the pointer.
+  The camera frames the pair already turned by its resting yaw, because a pair seen at an
+  angle needs more room than the same pair head-on, and it moves closer on narrow
+  canvases; the idle swing never pushes a nose past the edge.
   Paint is `MeshPhysicalMaterial` with clearcoat, glass is a separate low-roughness
   surface, everything else stays matte; one flat material made every body look like a
   toy. Body style follows the model name, so two cars
