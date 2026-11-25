@@ -1,256 +1,351 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bengsin — Kalkulator & Perbandingan Biaya BBM</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    :root {
-      --bordeaux: oklch(0.30 0.11 12);
-      --gold: oklch(0.76 0.13 85);
-      --accent: oklch(0.76 0.13 85);
-      --ink: oklch(0.18 0.01 60);
-      --muted: oklch(0.55 0.01 60);
-    }
-    body { font-family: system-ui, sans-serif; background: #fafafa; color: var(--ink); }
-    .nav-link { cursor: pointer; padding: 0.5rem 1rem; border-bottom: 2px solid transparent; }
-    .nav-link.active { color: var(--bordeaux); border-bottom-color: var(--bordeaux); font-weight: 600; }
-    .hidden { display: none !important; }
-    .preset-card { cursor: pointer; padding: 1rem; border: 2px solid #e5e7eb; border-radius: 0.5rem; transition: all 0.2s; }
-    .preset-card:hover { border-color: var(--bordeaux); background: #fef3c7; }
-    .preset-card.selected-a { border-color: #10b981; background: #d1fae5; }
-    .preset-card.selected-b { border-color: #3b82f6; background: #dbeafe; }
-    .card-result { background: white; padding: 1.5rem; border-radius: 0.75rem; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-    .card-compare { padding: 1.5rem; border: 2px solid #e5e7eb; border-radius: 0.5rem; }
-    .card-compare.winner { border-color: var(--gold); background: #fef3c7; }
-    .highlight-box { background: #fef3c7; padding: 1rem; border-radius: 0.5rem; border-left: 4px solid var(--bordeaux); }
-    .card-sm { background: white; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; }
-    .btn-primary { background: var(--bordeaux); color: white; padding: 0.5rem 1.5rem; border-radius: 0.5rem; font-weight: 600; border: none; cursor: pointer; }
-    .btn-primary:hover { background: oklch(0.25 0.11 12); }
-    .btn-secondary { background: white; color: var(--bordeaux); border: 2px solid var(--bordeaux); padding: 0.5rem 1.5rem; border-radius: 0.5rem; font-weight: 600; cursor: pointer; }
-    .btn-icon { background: transparent; border: none; cursor: pointer; font-size: 1.2rem; }
-    .field { width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; }
-    .label { display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.25rem; color: var(--muted); }
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 50; }
-    .modal-content { background: white; padding: 2rem; border-radius: 0.75rem; max-width: 400px; width: 90%; }
-    .error-msg { background: #fee2e2; color: #991b1b; padding: 0.75rem; border-radius: 0.375rem; margin-top: 0.5rem; }
-  </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bengsin — hitung biaya bensin bulanan</title>
+  <meta name="description" content="Hitung dan bandingkan biaya bensin bulanan mobil atau motor. Harga Pertamina, BP, dan Shell mengikuti kota, diperbarui tiap hari.">
+  <meta name="theme-color" content="#e7e8e3">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="/fonts/saira-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
+  <a class="skip" href="#main">Lewati ke isi</a>
 
-  <!-- Header -->
-  <header style="background: white; border-bottom: 1px solid #e5e7eb; position: sticky; top: 0; z-index: 40;">
-    <div style="max-width: 1200px; margin: 0 auto; padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center;">
-      <div style="display: flex; align-items: center; gap: 2rem;">
-        <h1 style="font-size: 1.5rem; font-weight: bold; color: var(--bordeaux);">Bengsin</h1>
-        <nav style="display: flex; gap: 1rem;">
-          <span class="nav-link active" data-page="comparison">Perbandingan</span>
-          <span class="nav-link" data-page="garage">Garage</span>
-        </nav>
+  <header class="site-head">
+    <div class="wrap site-head__in">
+      <a class="mark" href="/" data-nav="hitung">bengsin<span class="mark__dot" aria-hidden="true"></span></a>
+
+      <nav class="tabs" role="tablist" aria-label="Bagian aplikasi">
+        <button class="tab is-on" id="tab-hitung" type="button" role="tab"
+                aria-controls="page-hitung" aria-selected="true" data-nav="hitung">Hitung</button>
+        <button class="tab" id="tab-garage" type="button" role="tab"
+                aria-controls="page-garage" aria-selected="false" data-nav="garage">Garage</button>
+      </nav>
+
+      <div class="site-head__end">
+        <button id="authBtn" class="btn btn--quiet btn--sm" type="button">Masuk</button>
+        <button id="logoutBtn" class="btn btn--quiet btn--sm" type="button" hidden>Keluar</button>
       </div>
-      <button id="authBtn" class="btn-secondary">Login</button>
     </div>
   </header>
 
-  <!-- Main Content -->
-  <main style="max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem;">
+  <main id="main">
 
-    <!-- Comparison Page (Public) -->
-    <section id="comparisonPage">
-      <h2 style="font-size: 1.875rem; font-weight: bold; color: var(--bordeaux); margin-bottom: 1rem;">
-        Bandingkan Biaya BBM Antar Kendaraan
-      </h2>
-      <p style="color: var(--muted); margin-bottom: 2rem;">
-        Hitung & bandingkan biaya bahan bakar berdasarkan jarak dan hari kerja. Tanpa login.
-      </p>
-
-      <!-- City & Fuel Prices -->
-      <div style="background: white; padding: 1.5rem; border-radius: 0.75rem; margin-bottom: 2rem;">
-        <label class="label" for="citySelect">Kota (untuk harga BBM)</label>
-        <select id="citySelect" class="field"></select>
-        <div id="fuelPricesContainer" class="hidden" style="margin-top: 1rem;"></div>
+    <!-- ============ HITUNG ============ -->
+    <section class="page" id="page-hitung" role="tabpanel" aria-labelledby="tab-hitung" tabindex="-1">
+      <div class="wrap intro">
+        <h1>Hitung bensin sebulan.</h1>
+        <p class="lede">Isi jarak harian dan pilih kendaraan. Harga Pertamina, BP, dan Shell ikut kota yang kamu pilih, disinkronkan tiap hari dari MyPertamina.</p>
+        <p class="ticker" id="ticker" aria-live="polite"><span class="ticker__lab">Harga hari ini</span><span id="tickerBody"></span></p>
       </div>
 
-      <!-- Journey Parameters -->
-      <div style="background: white; padding: 1.5rem; border-radius: 0.75rem; margin-bottom: 2rem;">
-        <h3 class="text-base font-semibold mb-3">Parameter Perjalanan</h3>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label class="label" for="distanceInput">Jarak sekali jalan (km)</label>
-            <input id="distanceInput" type="number" class="field" min="1" value="10" required>
+      <div class="wrap layout">
+        <div class="form">
+
+          <div class="field">
+            <div class="field__top">
+              <label for="city">Kota</label>
+              <span class="field__meta" id="cityMeta">memuat harga…</span>
+            </div>
+            <div class="select">
+              <select id="city" aria-describedby="cityMeta"><option value="">Memuat kota…</option></select>
+              <svg class="select__chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 8 10.5 12 6.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
           </div>
-          <div>
-            <label class="label" for="daysPerWeekInput">Hari kerja / minggu</label>
-            <input id="daysPerWeekInput" type="number" class="field" min="1" max="7" value="5" required>
+
+          <div class="field">
+            <div class="field__top">
+              <label for="vsearch">Kendaraan</label>
+              <span class="field__meta" id="vMeta">memuat preset…</span>
+            </div>
+
+            <div class="slots" id="slots"></div>
+
+            <div class="search">
+              <svg class="search__icon" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.2 10.2 13.5 13.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              <input id="vsearch" type="search" placeholder="avanza, beat, nmax" autocomplete="off" spellcheck="false" aria-describedby="vHint">
+            </div>
+
+            <div class="seg seg--sm" id="vtype" role="group" aria-label="Jenis kendaraan">
+              <label><input type="radio" name="vtype" value="all" checked><span>Semua</span></label>
+              <label><input type="radio" name="vtype" value="Car"><span>Mobil</span></label>
+              <label><input type="radio" name="vtype" value="Motorcycle"><span>Motor</span></label>
+            </div>
+
+            <ul class="vlist" id="vlist" aria-labelledby="vMeta"></ul>
+            <p class="hint" id="vHint">Preset berisi konsumsi resmi pabrikan. Angka konsumsi nyata biasanya lebih rendah.</p>
           </div>
-          <div>
-            <label class="label" for="workdaysMonthInput">Hari kerja / bulan (opsional)</label>
-            <input id="workdaysMonthInput" type="number" class="field" min="1" max="31" placeholder="Auto: 22">
-            <div class="text-xs opacity-60 mt-1">Kosongkan untuk auto-calculate</div>
+
+          <div class="field">
+            <div class="field__top">
+              <label for="distance">Jarak sekali jalan</label>
+              <span class="field__meta">pulang-pergi dihitung otomatis</span>
+            </div>
+            <div class="road" id="road">
+              <input id="distanceRange" type="range" min="1" max="60" step="1" value="10"
+                     aria-label="Jarak sekali jalan dalam kilometer" aria-describedby="kmHint">
+              <div class="road__lane" aria-hidden="true">
+                <svg class="road__mark"><line x1="0" y1="0" x2="100%" y2="0"/></svg>
+                <span class="road__fill"></span>
+                <span class="road__tick" style="left:25%"></span>
+                <span class="road__tick" style="left:50%"></span>
+                <span class="road__tick" style="left:75%"></span>
+                <svg class="road__car" viewBox="0 0 48 20">
+                  <path d="M2 14.2 3.3 10.3Q3.9 9.1 5.3 9.1h6.6l3.4-3.9Q16.2 4.3 17.5 4.3h12.3q1.3 0 2.1.9l3.5 3.9h6.4q2.1.2 2.4 2.3l.4 2.8z" fill="currentColor"/>
+                  <path d="M18.3 5.6h11.1q.6 0 1 .4l2.7 3.1H17.1l1.1-3.1q.2-.4.7-.4z" fill="var(--paper)" opacity=".92"/>
+                  <circle cx="12.6" cy="15.1" r="2.7" fill="var(--paper)" stroke="currentColor" stroke-width="1.5"/>
+                  <circle cx="34.4" cy="15.1" r="2.7" fill="var(--paper)" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+              </div>
+            </div>
+            <div class="road__foot">
+              <p class="hint" id="kmHint">Geser mobilnya, atau ketik angka.</p>
+              <div class="input-unit input-unit--sm">
+                <input id="distance" type="number" inputmode="decimal" min="0" step="0.5" value="10">
+                <span class="unit">km</span>
+              </div>
+            </div>
           </div>
+
+          <div class="field">
+            <div class="field__top">
+              <label id="daysLab">Hari kerja per minggu</label>
+              <span class="field__meta" id="daysMeta">22 hari/bulan</span>
+            </div>
+            <fieldset class="seg" aria-labelledby="daysLab">
+              <label><input type="radio" name="days" value="3"><span>3</span></label>
+              <label><input type="radio" name="days" value="4"><span>4</span></label>
+              <label><input type="radio" name="days" value="5" checked><span>5</span></label>
+              <label><input type="radio" name="days" value="6"><span>6</span></label>
+              <label><input type="radio" name="days" value="7"><span>7</span></label>
+            </fieldset>
+            <button class="link" type="button" id="advBtn" aria-expanded="false" aria-controls="adv">Pakai jumlah hari sendiri</button>
+            <div class="adv" id="adv" hidden>
+              <label class="sr" for="workdays">Hari kerja per bulan</label>
+              <input id="workdays" type="number" min="1" max="31" inputmode="numeric" placeholder="22">
+              <button class="link" type="button" id="advReset">Kembali otomatis</button>
+            </div>
+          </div>
+
         </div>
+
+        <aside class="readout" id="readout" aria-label="Perkiraan biaya bulanan">
+          <div class="readout__top">
+            <div>
+              <p class="readout__lab"><span>Perkiraan per bulan</span><span class="readout__city" id="roCity"></span></p>
+              <p class="readout__veh" id="roVeh">Belum ada kendaraan</p>
+            </div>
+            <button class="readout__toggle" id="roToggle" type="button" aria-expanded="false" aria-controls="roBody">
+              <span>Rincian</span>
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 10 8 6l4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+
+          <p class="figure" id="roFigure" aria-live="polite" aria-atomic="true">
+            <span class="figure__cur">Rp</span><span class="figure__num" id="roNum">0</span>
+          </p>
+          <p class="readout__sub" id="roSub">Pilih kota dan kendaraan.</p>
+
+          <div class="readout__body" id="roBody">
+            <dl class="chain" id="roChain"></dl>
+            <div class="cmp" id="roCmp" hidden></div>
+            <div class="readout__foot">
+              <button class="btn btn--line btn--sm btn--full" type="button" id="copyBtn">Salin ringkasan</button>
+            </div>
+          </div>
+        </aside>
       </div>
 
-      <!-- Vehicle Presets Grid -->
-      <div style="background: white; padding: 1.5rem; border-radius: 0.75rem; margin-bottom: 2rem;">
-        <!-- Vehicle Search & Selection -->
-        <div style="background: white; padding: 1.5rem; border-radius: 0.75rem; margin-bottom: 2rem;">
-          <h3 class="text-base font-semibold mb-3">Pilih Kendaraan</h3>
-          <input 
-            id="vehicleSearch" 
-            type="text" 
-            class="field mb-3" 
-            placeholder="Cari kendaraan... (contoh: avanza, beat, honda)"
-            autocomplete="off">
-          <div id="searchResults" class="space-y-2"></div>
+      <div class="scrim" id="roScrim" hidden></div>
+
+      <section class="wrap board" id="board" aria-labelledby="boardTitle">
+        <div class="board__head">
+          <h2 id="boardTitle">Harga BBM</h2>
+          <p class="board__meta" id="boardMeta">—</p>
         </div>
-
-        <!-- Single Vehicle Cost -->
-        <div id="singleVehicleCost" class="hidden"></div>
-
-        <!-- Comparison Result -->
-        <div id="comparisonResult" class="hidden"></div>
+        <div id="boardTable"></div>
+        <p class="board__note" id="boardNote"></p>
+      </section>
     </section>
 
-    <!-- Garage Page (Authenticated) -->
-    <section id="garagePage" class="hidden">
-      <h2 style="font-size: 1.875rem; font-weight: bold; color: var(--bordeaux); margin-bottom: 2rem;">
-        Garage Saya
-      </h2>
+    <!-- ============ GARAGE ============ -->
+    <section class="page" id="page-garage" role="tabpanel" aria-labelledby="tab-garage" tabindex="-1" hidden>
+      <div class="wrap intro intro--tight">
+        <h1>Garage</h1>
+        <p class="lede" id="garageLede">Kendaraan dan catatan pengisian BBM milikmu.</p>
+      </div>
 
-      <!-- Add Vehicle -->
-      <div style="background: white; padding: 1.5rem; border-radius: 0.75rem; margin-bottom: 2rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-          <h3 style="font-weight: 600;">Kendaraan Saya</h3>
-          <button id="toggleVehicleFormBtn" class="btn-secondary" style="padding: 0.5rem 1rem;">
-            + Tambah Kendaraan
-          </button>
+      <div class="wrap guest" id="garageOut" hidden>
+        <div class="empty empty--big">
+          <h2>Masuk dulu, ya.</h2>
+          <p>Garage menyimpan kendaraan dan riwayat pengisian. Hitung biaya bulanan tetap bisa dipakai tanpa akun.</p>
+          <div class="empty__actions">
+            <button class="btn" type="button" data-open-auth="login">Masuk</button>
+            <button class="btn btn--line" type="button" data-open-auth="register">Buat akun</button>
+          </div>
         </div>
-        
-        <!-- Vehicle Form (hidden by default) -->
-        <form id="vehicleForm" class="hidden" style="margin-top: 1rem;">
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
-            <div>
-              <label class="label" for="vNickname">Nama panggilan</label>
-              <input id="vNickname" class="field" placeholder="Vario Hitam" required>
-            </div>
-            <div>
-              <label class="label" for="vType">Jenis</label>
-              <select id="vType" class="field" required>
-                <option value="Car">Mobil</option>
-                <option value="Motorcycle">Motor</option>
-              </select>
-            </div>
-            <div>
-              <label class="label" for="vBrand">Merek</label>
-              <select id="vBrand" class="field" required>
-                <option value="">Pilih merek</option>
-              </select>
-            </div>
-            <div>
-              <label class="label" for="vModel">Model</label>
-              <input id="vModel" class="field" placeholder="Avanza" required>
-            </div>
-            <div>
-              <label class="label" for="vEngine">Tipe Mesin</label>
-              <select id="vEngine" class="field" required>
-                <option value="GASOLINE">Bensin</option>
-                <option value="DIESEL">Diesel</option>
-                <option value="ELECTRIC">Listrik</option>
-                <option value="HYBRID">Hybrid</option>
-              </select>
-            </div>
-            <div>
-              <label class="label" for="vOctane">Min. Oktan</label>
-              <input id="vOctane" type="number" class="field" min="88" max="98" step="1" placeholder="90" required>
-            </div>
-            <div>
-              <label class="label" for="vKmpl">Konsumsi BBM (km/L)</label>
-              <input id="vKmpl" type="number" class="field" step="0.1" placeholder="15.5" required>
-            </div>
-          </div>
-          <div id="vehicleError" class="error-msg hidden"></div>
-          <div style="display: flex; gap: 0.5rem;">
-            <button type="submit" id="vehicleSubmitBtn" class="btn-primary">Simpan</button>
-            <button type="button" id="cancelVehicleFormBtn" class="btn-secondary">Batal</button>
-          </div>
-        </form>
-        
-        <!-- Vehicle List -->
-        <div id="vehicleList" style="margin-top: 1rem;"></div>
+
+        <dl class="docket">
+          <div><dt>Kendaraan</dt><dd>Mobil dan motor dengan konsumsi aslinya, bukan angka pabrik.</dd></div>
+          <div><dt>Riwayat</dt><dd>Tiap pengisian dicatat; total bulan ini dihitung ulang sendiri.</dd></div>
+          <div><dt>Ringkasan</dt><dd>Salin biaya bulan ke laporan, grup, atau patungan.</dd></div>
+        </dl>
       </div>
 
-      <!-- Add Expense -->
-      <div style="background: white; padding: 1.5rem; border-radius: 0.75rem; margin-bottom: 2rem;">
-        <h3 style="font-weight: 600; margin-bottom: 1rem;">Catat Pengisian BBM</h3>
-        <form id="expenseForm">
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
-            <div>
-              <label class="label" for="eVehicle">Kendaraan</label>
-              <select id="eVehicle" class="field" required></select>
-            </div>
-            <div>
-              <label class="label" for="eFuelType">Jenis BBM</label>
-              <select id="eFuelType" class="field" required>
-                <option value="">Pilih BBM</option>
-              </select>
-            </div>
-            <div>
-              <label class="label" for="eLiters">Liter</label>
-              <input id="eLiters" type="number" class="field" step="0.1" placeholder="10.5" required>
-            </div>
-            <div>
-              <label class="label" for="eCost">Total Biaya (Rp)</label>
-              <input id="eCost" type="number" class="field" placeholder="150000" required>
-            </div>
-            <div>
-              <label class="label" for="eDate">Tanggal</label>
-              <input id="eDate" type="date" class="field" required>
-            </div>
-          </div>
-          <div id="expenseError" class="error-msg hidden"></div>
-          <button type="submit" id="expenseSubmitBtn" class="btn-primary">Simpan</button>
-        </form>
-      </div>
+      <div class="wrap glayout" id="garageIn" hidden>
+        <div class="gcol">
+          <section class="panel">
+            <header class="panel__head">
+              <h2>Kendaraan</h2>
+              <button class="btn btn--line btn--sm" id="addVehicleBtn" type="button" aria-expanded="false" aria-controls="vehicleForm">Tambah</button>
+            </header>
 
-      <!-- Expense List -->
-      <div style="background: white; padding: 1.5rem; border-radius: 0.75rem;">
-        <h3 style="font-weight: 600; margin-bottom: 1rem;">Riwayat Pengisian</h3>
-        <div id="expenseList"></div>
+            <form id="vehicleForm" class="vform" hidden>
+              <div class="grid2">
+                <div class="field field--bare">
+                  <label for="vNick">Nama panggilan</label>
+                  <input id="vNick" placeholder="Vario hitam" required maxlength="40">
+                </div>
+                <div class="field field--bare">
+                  <label for="vType">Jenis</label>
+                  <div class="select">
+                    <select id="vType" required>
+                      <option value="Car">Mobil</option>
+                      <option value="Motorcycle">Motor</option>
+                    </select>
+                    <svg class="select__chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 8 10.5 12 6.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </div>
+                </div>
+                <div class="field field--bare">
+                  <label for="vBrand">Merek</label>
+                  <div class="select">
+                    <select id="vBrand" required><option value="">Pilih merek</option></select>
+                    <svg class="select__chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 8 10.5 12 6.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </div>
+                </div>
+                <div class="field field--bare">
+                  <label for="vModel">Model</label>
+                  <input id="vModel" placeholder="Avanza" required maxlength="40">
+                </div>
+                <div class="field field--bare">
+                  <label for="vEngine">Bahan bakar</label>
+                  <div class="select">
+                    <select id="vEngine" required>
+                      <option value="GASOLINE">Bensin</option>
+                      <option value="DIESEL">Diesel</option>
+                    </select>
+                    <svg class="select__chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 8 10.5 12 6.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </div>
+                </div>
+                <div class="field field--bare">
+                  <label for="vOctane">Oktan minimum</label>
+                  <input id="vOctane" type="number" min="88" max="100" step="1" inputmode="numeric" placeholder="90" required>
+                </div>
+                <div class="field field--bare">
+                  <label for="vKmpl">Konsumsi (km/L)</label>
+                  <input id="vKmpl" type="number" min="1" max="200" step="0.1" inputmode="decimal" placeholder="14,5" required>
+                </div>
+              </div>
+              <p class="err" id="vehicleError" role="alert" hidden></p>
+              <div class="form__actions">
+                <button class="btn btn--sm" type="submit" id="vehicleSubmit">Simpan kendaraan</button>
+                <button class="btn btn--quiet btn--sm" type="button" id="vehicleCancel">Batal</button>
+              </div>
+            </form>
+
+            <ul class="vehicles" id="vehicleList"></ul>
+          </section>
+        </div>
+
+        <div class="gcol gcol--wide">
+          <section class="panel">
+            <header class="panel__head">
+              <h2>Catat pengisian</h2>
+              <p class="panel__meta">dicatat untuk hari ini</p>
+            </header>
+
+            <form id="expenseForm" class="eform">
+              <div class="grid2">
+                <div class="field field--bare">
+                  <label for="eVehicle">Kendaraan</label>
+                  <div class="select">
+                    <select id="eVehicle" required></select>
+                    <svg class="select__chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 8 10.5 12 6.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </div>
+                </div>
+                <div class="field field--bare">
+                  <label for="eFuel">BBM</label>
+                  <div class="select">
+                    <select id="eFuel" required><option value="">Pilih kendaraan dulu</option></select>
+                    <svg class="select__chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 8 10.5 12 6.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </div>
+                </div>
+                <div class="field field--bare">
+                  <label for="eCost">Total bayar (Rp)</label>
+                  <input id="eCost" type="number" min="0" step="1000" inputmode="numeric" placeholder="50000" required>
+                </div>
+                <div class="field field--bare">
+                  <label for="eLiters">Liter</label>
+                  <input id="eLiters" type="number" min="0" step="0.01" inputmode="decimal" placeholder="5" aria-describedby="eHint">
+                </div>
+              </div>
+              <p class="hint" id="eHint">Isi total bayar, liternya dihitung dari harga BBM yang dipilih.</p>
+              <p class="err" id="expenseError" role="alert" hidden></p>
+              <div class="form__actions">
+                <button class="btn btn--sm" type="submit" id="expenseSubmit">Simpan catatan</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="panel">
+            <header class="panel__head">
+              <h2>Riwayat</h2>
+              <p class="panel__meta" id="histMeta"></p>
+            </header>
+            <div id="expenseList"></div>
+          </section>
+        </div>
       </div>
     </section>
-
   </main>
 
-  <!-- Auth Modal -->
-  <div id="authModal" class="modal-overlay hidden">
-    <div class="modal-content">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-        <h3 id="authModalTitle" style="font-size: 1.25rem; font-weight: bold;">Login</h3>
-        <button id="authModalClose" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
-      </div>
-      <form id="authForm">
-        <input type="hidden" id="authMode" value="login">
-        <div style="margin-bottom: 1rem;">
-          <label class="label" for="authEmail">Email</label>
-          <input id="authEmail" type="email" class="field" required>
-        </div>
-        <div style="margin-bottom: 1rem;">
-          <label class="label" for="authPassword">Password</label>
-          <input id="authPassword" type="password" class="field" required>
-        </div>
-        <div id="authError" class="error-msg hidden"></div>
-        <button type="submit" id="authSubmitBtn" class="btn-primary" style="width: 100%; margin-top: 1rem;">Login</button>
-      </form>
-      <div id="authToggle" style="text-align: center; margin-top: 1rem; font-size: 0.875rem;">
-        Belum punya akun? <a href="#" id="authToggleLink" style="color: var(--bordeaux); font-weight: 600;">Register</a>
-      </div>
+  <!-- Auth -->
+  <dialog class="auth" id="authDialog" aria-labelledby="authTitle">
+    <div class="auth__head">
+      <h2 id="authTitle">Masuk</h2>
+      <button class="icon-btn" type="button" id="authClose" aria-label="Tutup">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
     </div>
-  </div>
 
-  <div id="authModalOverlay" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 49;"></div>
+    <div class="seg seg--sm seg--block" role="group" aria-label="Mode akun">
+      <label><input type="radio" name="authmode" value="login" checked><span>Masuk</span></label>
+      <label><input type="radio" name="authmode" value="register"><span>Daftar</span></label>
+    </div>
 
-  <script src="/app.js?v=5"></script>
+    <form id="authForm" novalidate>
+      <div class="field field--bare">
+        <label for="authEmail">Email</label>
+        <input id="authEmail" type="email" autocomplete="email" required>
+      </div>
+      <div class="field field--bare">
+        <label for="authPassword">Password</label>
+        <input id="authPassword" type="password" autocomplete="current-password" minlength="8" required>
+      </div>
+      <p class="err" id="authError" role="alert" hidden></p>
+      <button class="btn btn--full" type="submit" id="authSubmit">Masuk</button>
+    </form>
+    <p class="auth__note" id="authNote">Akun dipakai untuk menyimpan garage dan riwayat pengisian.</p>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <noscript>
+    <p class="wrap noscript">Bengsin butuh JavaScript untuk menghitung. Aktifkan dulu di pengaturan browser.</p>
+  </noscript>
+
+  <script src="/app.js" defer></script>
 </body>
 </html>

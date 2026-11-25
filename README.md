@@ -1,30 +1,54 @@
 # Bengsin
 
-Aplikasi web untuk menghitung biaya bahan bakar bulanan, membandingkan beberapa kendaraan, dan mencatat pengisian BBM harian. Harga BBM mengikuti kota yang dipilih.
+Kalkulator biaya bensin bulanan untuk mobil dan motor di Indonesia. Pilih kota, isi
+jarak harian, dan aplikasi menghitung liter serta rupiah yang keluar sebulan memakai BBM
+termurah yang cocok dengan mesin kendaraan.
 
 Situs: https://bengsin.vercel.app
 
-![Halaman perbandingan](docs/screenshot.jpg)
+![Halaman hitung](docs/screenshot.jpg)
 
-## Fitur
+## Isi
 
-**Perbandingan biaya tanpa login.** Pilih kota, isi jarak sekali jalan, hari kerja per minggu, lalu pilih kendaraan. Aplikasi menampilkan kilometer bulanan, liter yang dibutuhkan, dan biaya rupiah. Rumusnya: kilometer bulanan = jarak x 2 (pulang pergi) x hari kerja, liter = kilometer / konsumsi kendaraan, biaya = liter x harga BBM termurah yang oktannya memenuhi syarat kendaraan.
+**Hitung tanpa akun.** Kota, kendaraan, jarak sekali jalan, dan hari kerja per minggu.
+Jaraknya diatur dengan menggeser mobil di lintasan — atau mengetik angkanya kalau butuh
+presisi. Hasilnya: kilometer sebulan, liter yang dibutuhkan, dan biaya rupiah. Dua
+kendaraan bisa dibandingkan berdampingan, lengkap dengan selisih per bulan.
 
-**Harga BBM per kota.** Daftar harga Pertamina, BP, dan Shell beserta oktan atau setana. Data awal diisi dari seed, lalu diperbarui oleh sinkronisasi harian.
+**Papan harga.** Harga Pertamina, BP, dan Shell per liter di kota yang dipilih, urut dari
+termurah, ditandai mana yang dipakai kendaraanmu dan mana yang tidak cocok. Tiap baris
+juga menunjukkan biaya bulanan kalau kamu memakai BBM itu, jadi "pindah ke Pertamax"
+bisa dijawab tanpa hitung ulang.
 
-**Garage.** Setelah login, kendaraan bisa disimpan: merek, model, tipe mesin, konsumsi km per liter, dan oktan minimum. Tersedia pencarian merek mobil dan motor.
+**Garage.** Setelah masuk, kendaraan disimpan dengan merek, model, tipe mesin, konsumsi
+km/L, dan oktan minimum.
 
-**Catatan pengisian.** Setiap pengisian dicatat sebagai liter, total biaya, dan tanggal. Riwayat tampil per kendaraan dan bisa dihapus.
+**Catatan pengisian.** Total bayar dan liter per pengisian, dikelompokkan per bulan
+dengan subtotal. Semua bisa dihapus.
 
-**Ringkasan bulanan.** Total liter dan total rupiah per bulan, diambil dari catatan pengisian.
+## Cara menghitung
 
-**Akun.** Registrasi, login, refresh token, dan logout. Password di-hash dengan bcrypt, sesi memakai JWT.
+```
+km/bulan  = jarak sekali jalan × 2 × hari kerja per bulan
+hari kerja = ⌈30 × hari per minggu ÷ 7⌉        (5 hari → 22 hari)
+liter     = km/bulan ÷ konsumsi (km/L)
+biaya     = liter × harga BBM termurah yang cocok
+```
 
-## Cara kerja data
+BBM dianggap cocok kalau jenisnya sama dengan mesin (bensin atau diesel) dan angka
+oktannya memenuhi oktan minimum kendaraan. Semua perhitungan berjalan di browser.
 
-Kendaraan preset berisi 20 mobil dan motor dengan konsumsi km per liter. Perhitungan biaya berjalan di browser, jadi halaman perbandingan tetap bisa dipakai tanpa akun. Server hanya menyimpan akun, kendaraan milik pengguna, dan catatan pengisian.
+## Data
 
-Harga BBM disimpan per kota. Sinkronisasi harian menarik data publik MyPertamina dari mirror `nasgunawann/bensin-api`, memetakan 40 provinsi menjadi baris kota, dan hanya menulis ulang baris yang harganya berubah.
+- 118 kota, dipetakan dari 40 provinsi pada sumber harga.
+- 97 preset kendaraan (68 mobil, 29 motor) berisi konsumsi resmi pabrikan. Preset dengan
+  tenaga listrik disembunyikan karena API hanya mengenal bensin dan diesel.
+- 818 baris harga dari tiga merek. Dua sumber data tumpang tindih; klien membuang
+  duplikatnya dan memilih baris dengan nama produk yang rapi.
+
+Harga disinkronkan sekali sehari dari mirror publik MyPertamina, bukan dari situs
+Pertamina langsung (halamannya Blazor, harga baru muncul setelah JavaScript jalan).
+Endpoint `/cron/fuel-sync` hanya menulis ulang baris yang harganya berubah.
 
 ## API
 
@@ -47,54 +71,50 @@ Harga BBM disimpan per kota. Sinkronisasi harian menarik data publik MyPertamina
 | GET | `/expenses/monthly-summary` | Total liter dan rupiah per bulan |
 | GET, POST | `/cron/fuel-sync` | Jalankan sinkronisasi harga |
 
-Dokumentasi interaktif tersedia di `/docs`, skema OpenAPI di `/openapi.json`.
+Dokumentasi interaktif di `/docs`, skema OpenAPI di `/openapi.json`.
 
-## Sinkronisasi harga harian
-
-Vercel Cron memanggil `GET /cron/fuel-sync` sekali sehari pada `0 22 * * *` UTC, atau 05.00 WIB. Fungsi menarik JSON sekitar 57 KB lalu melakukan upsert, selesai dalam dua sampai tiga detik.
-
-Sumber datanya mirror publik, bukan situs Pertamina langsung. Halaman Pertamina memakai Blazor, sehingga harga baru muncul setelah JavaScript berjalan dan tidak bisa dibaca fungsi serverless tanpa browser.
-
-Bila `CRON_SECRET` diisi, endpoint hanya menerima header `Authorization: Bearer <CRON_SECRET>`. Pertamina mengubah harga beberapa kali sebulan, sedangkan mirror memperbarui tiap jam, jadi jadwal harian sudah lebih dari cukup.
+`POST /expenses/` memakai tanggal hari ini; API tidak menerima tanggal lain. Kalau
+`CRON_SECRET` diisi, endpoint sinkronisasi hanya menerima `Authorization: Bearer`.
 
 ## Menjalankan lokal
 
 ```bash
 python3.11 -m venv .venv
 .venv/bin/pip install -r api/requirements.txt
-cd api && ../.venv/bin/python -m uvicorn app.main:app --reload --port 8000
-```
-
-Atau dari akar repo:
-
-```bash
 .venv/bin/python run.py
 ```
 
-Buka http://127.0.0.1:8000. Tanpa `DATABASE_URL`, aplikasi memakai SQLite lokal di folder `api/`.
+Buka http://127.0.0.1:8000. Tanpa `DATABASE_URL`, aplikasi memakai SQLite di `api/`.
+Server yang sama menyajikan `public/`, jadi tidak ada langkah build.
 
 ## Environment
 
 | Variabel | Wajib | Keterangan |
 | --- | --- | --- |
-| `DATABASE_URL` | Produksi | Koneksi Postgres. Di Vercel, SQLite tidak bertahan antar panggilan. |
+| `DATABASE_URL` | Produksi | Koneksi Postgres. SQLite tidak bertahan antar panggilan di Vercel. |
 | `SECRET_KEY` | Produksi | Kunci tanda tangan JWT. |
 | `CRON_SECRET` | Disarankan | Mengunci endpoint sinkronisasi. |
 | `FUEL_PRICE_URL` | Tidak | Menimpa URL sumber harga. |
 
-## Struktur repo
+## Struktur
 
 ```
 api/
   index.py            entrypoint Vercel
   app/
-    main.py           aplikasi FastAPI, mount frontend
+    main.py           aplikasi FastAPI, menyajikan public/
     models.py         tabel SQLAlchemy
     routers/          auth, garage, expenses, vehicles, brands, cron
     services/         fuel_sync.py
-bengsin-frontend/
-  index.html          satu halaman, tiga bagian
+public/
+  index.html          satu halaman, dua tab
+  styles.css          token, layout, komponen
   app.js              state, render, panggilan API
+  fonts/              Saira variable, di-host sendiri
+  favicon.svg
+docs/screenshot.jpg
+PRODUCT.md            keputusan produk dan arti angka
+DESIGN.md             token, tipe, komponen, state
 vercel.json           build Python, rewrite, jadwal cron
 run.py                launcher lokal
 ```

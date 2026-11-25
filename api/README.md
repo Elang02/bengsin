@@ -1,192 +1,63 @@
-# Bengsin Backend API
+# Bengsin API
 
-FastAPI backend untuk aplikasi Bengsin - Kalkulator & Perbandingan Biaya BBM.
+FastAPI + SQLAlchemy di balik `public/`. Satu proses menyajikan API dan frontend, jadi
+`/app.js` dan `/styles.css` datang dari origin yang sama.
 
-## 🚀 Features
-
-- **Authentication & Authorization** - JWT-based login system
-- **Vehicle Management** - CRUD operations untuk garage
-- **Expense Tracking** - Pencatatan pengisian BBM
-- **Fuel Price API** - Harga BBM per kota dengan zone-based pricing
-- **Vehicle Presets** - 100 preset kendaraan (65 mobil, 23 motor)
-- **City Coverage** - 31 kota dengan distribusi SPBU realistis
-
-## 📋 Prerequisites
-
-- Python 3.11+
-- PostgreSQL database (Supabase recommended)
-
-## 🔧 Installation
+## Menjalankan
 
 ```bash
-# Install dependencies
+cd api
 pip install -r requirements.txt
-
-# Setup environment variables
-cp .env.example .env
-# Edit .env with your DATABASE_URL
+uvicorn app.main:app --reload --port 8000
 ```
 
-## ⚙️ Configuration
+Tanpa `DATABASE_URL`, aplikasi memakai SQLite di `api/bengsin.db`. Di Vercel SQLite tidak
+bertahan antar invocation, jadi produksi wajib Postgres.
 
-Create `.env` file:
+| Variabel | Keterangan |
+| --- | --- |
+| `DATABASE_URL` | Postgres di produksi |
+| `SECRET_KEY` | Kunci JWT |
+| `TOKEN_EXPIRE_MINUTES` | Umur access token, default 120 |
+| `CRON_SECRET` | Mengunci `/cron/fuel-sync`; tanpa ini endpoint terbuka |
+| `FUEL_PRICE_URL` | Menimpa sumber harga |
 
-```env
-DATABASE_URL=postgresql://user:password@host:port/database
-SECRET_KEY=your-secret-key-here
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-```
+## Model
 
-## 🏃 Running
+`User`, `Vehicle` (garage), `Expense`, `VehiclePreset`, `FuelPrice`, `City`, `CarBrand`,
+`MotorBrand`. Tabel dibuat saat startup lewat `Base.metadata.create_all`; tidak ada
+migrasi Alembic.
 
-```bash
-# Development server
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+## Endpoint
 
-# Production
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
-```
+| Metode | Path | Catatan |
+| --- | --- | --- |
+| GET | `/health` | Status |
+| POST | `/auth/register` | 201, mengembalikan user |
+| POST | `/auth/login` | `{access_token, refresh_token}` |
+| POST | `/auth/refresh` | `?refresh_token=…`, token dirotasi |
+| POST | `/auth/logout` | Cabut refresh token |
+| GET | `/auth/me` | Butuh `Authorization: Bearer` |
+| GET | `/presets` · POST `/presets` | Preset kendaraan |
+| GET | `/cities` | 118 baris |
+| GET | `/fuel-prices` | `?city_id=`, 818 baris |
+| GET | `/car-brands` · `/motorbike-brands` | Merek |
+| GET, POST | `/garage/` | `vehicle_type`: `Car` atau `Motorcycle` |
+| DELETE | `/garage/{vehicle_id}` | Hapus kendaraan |
+| GET, POST | `/expenses/` | `log_date` diisi server dengan hari ini |
+| DELETE | `/expenses/{expense_id}` | Hapus catatan |
+| GET | `/expenses/monthly-summary` | Total per bulan |
+| GET, POST | `/cron/fuel-sync` | Sinkronisasi harga |
 
-## 📚 API Documentation
-
-Once running, visit:
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
-
-## 🗄️ Database
-
-Database schema managed by SQLAlchemy ORM. Models include:
-- `User` - User accounts
-- `Vehicle` - User vehicles in garage
-- `Expense` - Fuel expense records
-- `VehiclePreset` - Vehicle database (100 presets)
-- `FuelPrice` - Fuel prices by city
-- `City` - City list (31 cities)
-- `CarBrand` / `MotorBrand` - Vehicle brands
-
-Run migrations (if needed):
-```bash
-alembic upgrade head
-```
-
-## 🔗 CORS Configuration
-
-Backend configured for cross-origin requests. Update `allow_origins` in `main.py` for production:
-
-```python
-allow_origins=["https://yourdomain.com"]  # Replace * with actual domain
-```
-
-## 📁 Project Structure
-
-```
-bengsin-backend/
-├── app/
-│   ├── main.py           # FastAPI app & CORS setup
-│   ├── config.py         # Environment configuration
-│   ├── database.py       # Database connection
-│   ├── models.py         # SQLAlchemy models
-│   ├── schemas.py        # Pydantic schemas
-│   └── routers/          # API route modules
-│       ├── auth.py       # Authentication endpoints
-│       ├── garage.py     # Vehicle management
-│       ├── expenses.py   # Expense tracking
-│       ├── brands.py     # Brand listings
-│       └── vehicles.py   # Vehicle presets & fuel prices
-├── requirements.txt      # Python dependencies
-└── .env                  # Environment variables
-```
-
-## 🌐 Endpoints
-
-### Public Endpoints
-- `GET /` - API info
-- `GET /health` - Health check
-- `POST /auth/register` - User registration
-- `POST /auth/login` - User login
-- `GET /cities` - List cities
-- `GET /cities/{city_id}/fuel-prices` - Fuel prices by city
-- `GET /vehicle-presets` - List vehicle presets
-
-### Protected Endpoints (Require JWT)
-- `GET /garage/vehicles` - User vehicles
-- `POST /garage/vehicles` - Add vehicle
-- `PUT /garage/vehicles/{id}` - Update vehicle
-- `DELETE /garage/vehicles/{id}` - Delete vehicle
-- `GET /expenses` - Expense history
-- `POST /expenses` - Add expense
-
-## 🔐 Authentication
-
-JWT-based authentication. Include token in requests:
-
-```bash
-curl -H "Authorization: Bearer YOUR_JWT_TOKEN" http://localhost:8000/garage/vehicles
-```
-
-## 📊 Database Seeding
-
-Database pre-seeded with:
-- ✅ 100 vehicle presets
-- ✅ 31 cities (30 major + "Kota Lain")
-- ✅ 262 fuel prices with zone-based Pertamina pricing
-- ✅ 9 car brands, 4 motorcycle brands
-
-## 🧪 Testing
-
-```bash
-# Run tests (if test suite exists)
-pytest
-
-# With coverage
-pytest --cov=app tests/
-```
-
-## 📦 Deployment
-
-### Supabase PostgreSQL
-Backend configured for Supabase PostgreSQL. Get connection string from Supabase dashboard.
-
-### Production Checklist
-- [ ] Update `allow_origins` in CORS config
-- [ ] Set secure `SECRET_KEY` in .env
-- [ ] Use production PostgreSQL database
-- [ ] Enable HTTPS
-- [ ] Configure rate limiting (optional)
-- [ ] Setup monitoring & logging
-
-## 🤝 Frontend Integration
-
-Backend designed to work with separate frontend. Frontend should:
-1. Set `API_BASE` to backend URL (e.g., `http://localhost:8000`)
-2. Include JWT token in Authorization header
-3. Handle CORS preflight requests
-
-Example frontend config:
-```javascript
-const API_BASE = "http://localhost:8000";  // or production URL
-```
-
-## 📝 License
-
-Proprietary - Bengsin Project
-
-## 👥 Author
-
-Developed by Elang
-
+Swagger di `/docs`, skema di `/openapi.json`.
 
 ## Harga BBM harian
 
-Harga ditarik sekali sehari oleh Vercel Cron ke `GET /cron/fuel-sync`
-(jadwal `0 22 * * *` UTC, 05:00 WIB). Sumbernya feed publik
-`nasgunawann/bensin-api` yang mengambil data MyPertamina tiap jam, karena
-pertamina.com memakai Blazor dan tidak bisa dibaca tanpa browser.
+Vercel Cron memanggil `GET /cron/fuel-sync` sekali sehari (`0 22 * * *` UTC, 05.00 WIB).
+Sumbernya feed publik `nasgunawann/bensin-api` yang mengambil MyPertamina tiap jam,
+karena pertamina.com memakai Blazor dan tidak bisa dibaca tanpa browser.
 
-- Isi `CRON_SECRET` di environment Vercel. Tanpa itu endpoint terbuka.
-- `DATABASE_URL` wajib menunjuk Postgres. Berkas SQLite di Vercel hilang setiap
-  invocation, jadi harga yang ditulis ke SQLite tidak akan bertahan.
+- Isi `CRON_SECRET` di environment Vercel.
 - Uji manual: `curl -H "Authorization: Bearer $CRON_SECRET" https://<domain>/cron/fuel-sync`
-- Provinsi disimpan sebagai kota memakai slug (`aceh`, `sumatera-utara`, ...), sehingga
+- Provinsi disimpan sebagai kota dengan slug (`aceh`, `sumatera-utara`, …), sehingga
   sinkronisasi berulang tidak menggandakan baris.
