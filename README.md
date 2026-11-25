@@ -126,7 +126,9 @@ run.py                launcher lokal
 
 ## Kredit
 
-- **three.js** 0.169.0, MIT — `public/vendor/`.
+- **three.js** 0.169.0, MIT — `public/vendor/`, termasuk `GLTFLoader` dan
+  `environments/RoomEnvironment` untuk pencahayaan studio. Model tiga dimensi dimuat
+  lewat import map, tanpa langkah build.
 - **Mobil dan motor**: [Quaternius](https://quaternius.com) "Cars Bundle", CC0, diunduh
   lewat [poly.pizza](https://poly.pizza) dan disimpan di `public/models/`.
 - **Saira** (Omnibus-Type), SIL Open Font License — `public/fonts/`.

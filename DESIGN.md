@@ -99,9 +99,13 @@ Numbers are always tabular. Money is `Rp 303.448`; litres `30,3`; km/L `14,5`.
   Every compatible row also prints what that fuel would cost this vehicle per month,
   under the price — the table doubles as the "what if I switch" answer.
 - **Duel stage**: a `<canvas>` rendered by three.js, loaded lazily the first time a
-  vehicle is chosen. Two vehicles stand side by side on a faint contact shadow under a
-  pool of canopy light; drag turns the pair (yaw ±, pitch small), and the pair drifts
-  slowly on its own after 2.6 s idle. Body style follows the model name, so two cars
+  vehicle is chosen. Two vehicles stand side by side on a soft contact shadow, lit by a
+  prefiltered studio environment (`PMREMGenerator` over `RoomEnvironment`) under
+  ACES tone mapping; drag turns the pair (yaw ±, pitch small), the pair drifts slowly on
+  its own after 2.6 s idle, and the camera leans a few centimetres toward the pointer.
+  Paint is `MeshPhysicalMaterial` with clearcoat, glass is a separate low-roughness
+  surface, everything else stays matte — one flat material made every body look like a
+  toy. Body style follows the model name, so two cars
   never share a silhouette; a motorcycle gets the bike model at 2.15 m against 4.5 m for
   cars, so the scale difference is real. Cars are oxblood (A) and bone (B); the bars in
   the right column carry the same two colours, so identity is colour, not the verdict.
@@ -138,10 +142,13 @@ One easing: `cubic-bezier(.22,.8,.2,1)`, and only transform/opacity move.
 - 240 ms: the figure ticks (`translateY` + opacity) when the number changes.
 - 120–140 ms: press feedback (`scale(.988)` on buttons, `scale(.98)` on chips).
 
-The duel stage runs its own loop: a 150 ms damped yaw follow on drag, a 0.004 m idle
-bob, and the wheel-follow on the road input for the procedural fallback models. The loop
-pauses on `document.hidden` and when the band leaves the viewport, and a single frame is
-drawn on resize. On reduced motion the stage is not started at all.
+The duel stage runs its own loop: a 150 ms damped yaw follow on drag, a 0.004 m idle bob,
+a damped camera parallax toward the pointer, and a 900 ms entrance dolly the first time
+the pair appears. The loop pauses on `document.hidden` and when the canvas leaves the
+viewport (a rect test, not an observer — the band is hidden at load, and an observer can
+stay stale), and the canvas is re-measured before every framing because it once measured
+0×0 while hidden and left the camera with a stale aspect. On reduced motion the camera
+snaps instead of travelling.
 
 Nothing animates on load and nothing animates on scroll. `prefers-reduced-motion: reduce`
 collapses every duration to 0.01 ms, which also disables the car's slide — the number

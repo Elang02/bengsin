@@ -3,6 +3,7 @@
 // Loaded lazily from app.js the first time a comparison appears.
 import * as THREE from "./vendor/three.module.min.js";
 import { GLTFLoader } from "./vendor/loaders/GLTFLoader.js";
+import { RoomEnvironment } from "./vendor/environments/RoomEnvironment.js";
 
 const GLASS = 0x22241d;
 const TYRE = 0x0e0f0b;
@@ -158,20 +159,60 @@ const MOTO_TINT = {
   cfd8dc: 0x9a9c90,
 };
 
+// Paint, glass and rubber are three different surfaces; a single flat standard
+// material makes every model look like a toy. Car paint gets clearcoat over a
+// metallic base, glass gets a low-roughness skin, everything else stays matte.
+function surface(kind, color) {
+  if (kind === "glass") {
+    return new THREE.MeshPhysicalMaterial({
+      color,
+      roughness: 0.06,
+      metalness: 0.55,
+      envMapIntensity: 1.6,
+      clearcoat: 1,
+      clearcoatRoughness: 0.04,
+    });
+  }
+  if (kind === "paint") {
+    return new THREE.MeshPhysicalMaterial({
+      color,
+      roughness: 0.3,
+      metalness: 0.42,
+      envMapIntensity: 1.15,
+      clearcoat: 0.9,
+      clearcoatRoughness: 0.12,
+    });
+  }
+  return new THREE.MeshStandardMaterial({ color, roughness: 0.78, metalness: 0.04 });
+}
+
 function tintModel(root, bodyColor, remap, bodyKey) {
   root.traverse((o) => {
     if (!o.isMesh) return;
     const mats = (Array.isArray(o.material) ? o.material : [o.material]).map((m) => {
-      const c = m.clone();
       const key = (m.name || "").toLowerCase().replace("#", "");
-      if (remap && key === bodyKey) c.color.setHex(bodyColor);
-      else if (remap && remap[key] !== undefined) c.color.setHex(remap[key]);
-      else if (!remap && !/window|black|grey|glass|head|tail|light/.test(key)) {
-        c.color.setHex(bodyColor);
+      const isGlass = /window|glass/.test(key);
+      const isBody = remap
+        ? key === bodyKey
+        : !/window|black|grey|glass|head|tail|light/.test(key);
+
+      let color = m.color ? m.color.getHex() : 0xffffff;
+      if (remap && isBody) color = bodyColor;
+      else if (remap && remap[key] !== undefined) color = remap[key];
+      else if (!remap && isBody) color = bodyColor;
+
+      if (isGlass) return surface("glass", 0x1b1d18);
+      if (isBody) return surface("paint", color);
+      if (/light/.test(key)) {
+        return new THREE.MeshStandardMaterial({
+          color,
+          roughness: 0.25,
+          metalness: 0.1,
+          emissive: color,
+          emissiveIntensity: 0.35,
+        });
       }
-      c.metalness = Math.min(c.metalness ?? 0, 0.22);
-      c.roughness = Math.max(c.roughness ?? 0.5, 0.42);
-      return c;
+      return surface("matte", color);
     });
     o.material = Array.isArray(o.material) ? mats : mats[0];
   });
@@ -193,7 +234,12 @@ function buildFromTemplate(template, tone, remap, targetLen) {
   if (!Number.isFinite(k) || k <= 0) return g;
   g.scale.setScalar(k);
   g.updateMatrixWorld(true);
+  // centre the body on its own pivot: authored models often sit off-origin,
+  // which reads as one car overlapping the other once they sit side by side
   const grounded = new THREE.Box3().setFromObject(g);
+  const mid = grounded.getCenter(new THREE.Vector3());
+  g.position.x -= mid.x;
+  g.position.z -= mid.z;
   g.position.y -= grounded.min.y;
 
   // Authored wheel nodes carry their own baked orientation; spinning them about
@@ -262,61 +308,64 @@ export function createStage(canvas) {
     powerPreference: "low-power",
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 0.95;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   const scene = new THREE.Scene();
-  scene.environment = (() => {
-    const c = document.createElement("canvas");
-    c.width = 16;
-    c.height = 64;
-    const ctx = c.getContext("2d");
-    const grad = ctx.createLinearGradient(0, 0, 0, 64);
-    grad.addColorStop(0, "#fbfbf4");
-    grad.addColorStop(0.42, "#dcdfd4");
-    grad.addColorStop(0.62, "#9ea294");
-    grad.addColorStop(1, "#3d4038");
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 16, 64);
-    const tex = new THREE.CanvasTexture(c);
-    tex.mapping = THREE.EquirectangularReflectionMapping;
-    tex.colorSpace = THREE.SRGBColorSpace;
-    return tex;
-  })();
-  const camera = new THREE.PerspectiveCamera(24, 1, 0.1, 120);
+  // A neutral studio, prefiltered once, so paint has something to reflect.
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const room = new RoomEnvironment();
+  scene.environment = pmrem.fromScene(room, 0.03).texture;
+  room.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
+  pmrem.dispose();
+
+  const camera = new THREE.PerspectiveCamera(26, 1, 0.1, 120);
   camera.position.set(0, 2.4, 12);
   camera.lookAt(0, 0.9, 0);
 
-  scene.add(new THREE.HemisphereLight(0xf2f2e6, 0x2a2c24, 1.35));
-  const key = new THREE.DirectionalLight(0xfff6e2, 2.9);
+  scene.add(new THREE.HemisphereLight(0xf2f2e6, 0x2a2c24, 1.0));
+  const key = new THREE.DirectionalLight(0xfff6e2, 2.2);
   key.position.set(7, 11, 8);
   scene.add(key);
-  const rim = new THREE.DirectionalLight(0x8b1538, 1.15);
+  const rim = new THREE.DirectionalLight(0x8b1538, 0.9);
   rim.position.set(-8, 3.5, -6);
   scene.add(rim);
-  const fill = new THREE.DirectionalLight(0xdfe6e8, 0.6);
+  const fill = new THREE.DirectionalLight(0xdfe6e8, 0.45);
   fill.position.set(2, 2, 12);
   scene.add(fill);
 
   // contact shadow texture, reused by every vehicle
-  const shadowTex = (() => {
+  // Two shadow passes: a tight core that anchors the tyres and a wide ambient
+  // spread. One soft blob reads as a smudge once the tone mapper lifts the floor.
+  const shadowTexture = (core) => {
     const c = document.createElement("canvas");
     c.width = c.height = 128;
     const ctx = c.getContext("2d");
     const grad = ctx.createRadialGradient(64, 64, 2, 64, 64, 62);
-    grad.addColorStop(0, "rgba(0,0,0,0.5)");
-    grad.addColorStop(0.42, "rgba(0,0,0,0.22)");
-    grad.addColorStop(1, "rgba(0,0,0,0)");
+    if (core) {
+      grad.addColorStop(0, "rgba(0,0,0,0.62)");
+      grad.addColorStop(0.45, "rgba(0,0,0,0.3)");
+      grad.addColorStop(1, "rgba(0,0,0,0)");
+    } else {
+      grad.addColorStop(0, "rgba(0,0,0,0.14)");
+      grad.addColorStop(0.5, "rgba(0,0,0,0.07)");
+      grad.addColorStop(1, "rgba(0,0,0,0)");
+    }
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, 128, 128);
     return new THREE.CanvasTexture(c);
-  })();
+  };
+  const coreTex = shadowTexture(true);
 
-  function castShadow(width, depth) {
+  function castShadow(width, depth, tex, y) {
     const mesh = new THREE.Mesh(
       new THREE.PlaneGeometry(width, depth),
-      new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false }),
+      new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }),
     );
     mesh.rotation.x = -Math.PI / 2;
-    mesh.position.y = 0.012;
+    mesh.position.y = y;
+    mesh.renderOrder = 1;
     return mesh;
   }
 
@@ -334,7 +383,6 @@ export function createStage(canvas) {
   let pitchTarget = 0.02;
   let lastInput = 0;
   let running = false;
-  let visible = true;
   let raf = 0;
   let last = 0;
   let dragging = false;
@@ -352,18 +400,32 @@ export function createStage(canvas) {
     });
   }
 
+  // Where the camera wants to be; the loop eases toward it so the pair never
+  // snaps when a vehicle changes or the canvas resizes.
+  const camBase = new THREE.Vector3(0, 2.4, 12);
+  const camLook = new THREE.Vector3(0, 0.9, 0);
+  const camAt = new THREE.Vector3(0, 2.4, 12);
+  let fitted = false;
+
   function frame() {
     if (!slotA || !fit) return;
+    measure();
     root.rotation.set(0, 0, 0);
     const { size, center } = fit;
     const fov = (camera.fov * Math.PI) / 180;
     const byHeight = size.y / 2 / Math.tan(fov / 2);
     const byWidth = size.x / 2 / (Math.tan(fov / 2) * Math.max(camera.aspect, 0.6));
     // narrow canvases have vertical room to spare, so the pair can sit closer
-    const margin = camera.aspect < 2.2 ? 0.98 : 1.08;
+    const margin = camera.aspect < 2.2 ? 0.94 : 1.02;
     const dist = Math.max(byHeight, byWidth) * margin + size.z / 2;
-    camera.position.set(center.x * 0.3, center.y + size.y * 0.55 + 0.25, center.z + dist);
-    camera.lookAt(center.x * 0.3, center.y * 0.8, center.z);
+    camBase.set(center.x * 0.3, center.y + size.y * 0.44 + 0.18, center.z + dist);
+    camLook.set(center.x * 0.3, center.y * 0.74, center.z);
+    if (!fitted) {
+      camAt.copy(camBase);
+      camera.position.copy(camBase);
+      fitted = true;
+    }
+    camera.lookAt(camLook);
   }
 
   function setVehicles(a, b) {
@@ -395,15 +457,19 @@ export function createStage(canvas) {
       slotB = make(b, 1);
       root.add(slotB);
     }
-    // sit them side by side with a gap, measured, not guessed
-    const gap = 0.62;
-    const wa = slotA ? new THREE.Box3().setFromObject(slotA).getSize(new THREE.Vector3()).x : 0;
-    const wb = slotB ? new THREE.Box3().setFromObject(slotB).getSize(new THREE.Vector3()).x : 0;
-    if (slotA && slotB) {
-      const total = wa + wb + gap;
-      slotA.position.x = -total / 2 + wa / 2;
-      slotB.position.x = total / 2 - wb / 2;
-    }
+    // Sit them side by side with a measured gap. Each slot is reset first so a
+    // previous vehicle's width cannot leave the pair overlapping.
+    const gap = 0.7;
+    for (const slot of [slotA, slotB]) if (slot) slot.position.set(0, 0, 0);
+    root.updateMatrixWorld(true);
+    const boxA = slotA ? new THREE.Box3().setFromObject(slotA) : null;
+    const boxB = slotB ? new THREE.Box3().setFromObject(slotB) : null;
+    const span = (b) => (b ? Math.max(0.001, b.max.x - b.min.x) : 0);
+    const mid = (b) => (b ? (b.min.x + b.max.x) / 2 : 0);
+    const wa = span(boxA);
+    const wb = span(boxB);
+    if (slotA) slotA.position.x = (slotB ? -gap / 2 - wa / 2 : 0) - mid(boxA);
+    if (slotB) slotB.position.x = (slotA ? gap / 2 + wb / 2 : 0) - mid(boxB);
     // measure the vehicles only, so the soft shadows do not zoom the camera out
     const box = new THREE.Box3();
     for (const slot of [slotA, slotB]) if (slot) box.expandByObject(slot);
@@ -411,38 +477,46 @@ export function createStage(canvas) {
       ? null
       : { size: box.getSize(new THREE.Vector3()), center: box.getCenter(new THREE.Vector3()) };
 
+    root.rotation.set(0, 0, 0);
+    root.updateMatrixWorld(true);
     for (const slot of [slotA, slotB]) {
       if (!slot) continue;
       const bb = new THREE.Box3().setFromObject(slot);
       const b = bb.getSize(new THREE.Vector3());
       const c = bb.getCenter(new THREE.Vector3());
-      const shadow = castShadow(b.x * 1.18, b.z * 1.25);
+      const shadow = castShadow(b.x * 1.14, b.z * 1.3, coreTex, 0.012);
       shadow.position.set(c.x - slot.position.x, 0.012, c.z - slot.position.z);
+      shadow.renderOrder = 1;
       slot.add(shadow);
+
     }
     frame();
+    enterAt = performance.now();
+  }
+
+  // The canvas lives in a <section hidden> until a comparison exists, so its
+  // first measured box can be 0×0 or stale. Re-measure before every framing.
+  function measure() {
+    const rect = canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return false;
+    const w = Math.round(rect.width);
+    const h = Math.round(rect.height);
+    if (canvas.width !== w || canvas.height !== h) renderer.setSize(w, h, false);
+    const aspect = w / h;
+    if (Math.abs(camera.aspect - aspect) > 0.0005) {
+      camera.aspect = aspect;
+      camera.updateProjectionMatrix();
+    }
+    return true;
   }
 
   function resize() {
-    const rect = canvas.getBoundingClientRect();
-    if (!rect.width || !rect.height) return;
-    renderer.setSize(rect.width, rect.height, false);
-    camera.aspect = rect.width / rect.height;
-    camera.updateProjectionMatrix();
+    if (!measure()) return;
     frame();
   }
 
   const ro = new ResizeObserver(resize);
   ro.observe(canvas);
-
-  const io = new IntersectionObserver(
-    (entries) => {
-      visible = entries[0].isIntersecting;
-      if (visible && running) loop(performance.now());
-    },
-    { threshold: 0.05 },
-  );
-  io.observe(canvas);
 
   function onDown(e) {
     dragging = true;
@@ -452,6 +526,21 @@ export function createStage(canvas) {
     canvas.setPointerCapture?.(e.pointerId);
     canvas.classList.add("is-dragging");
   }
+  let gazeX = 0;
+  let gazeY = 0;
+  let gazeTX = 0;
+  let gazeTY = 0;
+  let enterAt = 0;
+
+  function onHover(e) {
+    const rect = canvas.getBoundingClientRect();
+    if (!rect.width) return;
+    gazeTX = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+    gazeTY = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
+  }
+  canvas.addEventListener("pointermove", onHover);
+  canvas.addEventListener("pointerleave", () => { gazeTX = 0; gazeTY = 0; });
+
   function onMove(e) {
     if (!dragging) return;
     const dx = e.clientX - dragX;
@@ -476,7 +565,9 @@ export function createStage(canvas) {
   function loop(now) {
     if (!running) return;
     raf = requestAnimationFrame(loop);
-    if (!visible || document.hidden) {
+    const rect = canvas.getBoundingClientRect();
+    const onScreen = rect.bottom > -40 && rect.top < window.innerHeight + 40 && rect.width > 0;
+    if (!onScreen || document.hidden) {
       last = now;
       return;
     }
@@ -486,7 +577,7 @@ export function createStage(canvas) {
     if (!reduce.matches) {
       const idle = now - lastInput > 2600;
       if (idle && !dragging) {
-        yawTarget = -0.5 + Math.sin(now / 3400) * 0.22;
+        yawTarget = -0.36 + Math.sin(now / 4200) * 0.13;
       }
       yaw += (yawTarget - yaw) * Math.min(1, dt * 7);
       pitch += (pitchTarget - pitch) * Math.min(1, dt * 7);
@@ -501,6 +592,24 @@ export function createStage(canvas) {
       }
     }
 
+    // parallax: the camera leans toward the pointer, never past the stage.
+    // Reduced motion keeps the exact same framing, just without the travel.
+    if (reduce.matches) {
+      gazeX = gazeY = 0;
+      camAt.copy(camBase);
+    } else {
+      gazeX += (gazeTX - gazeX) * Math.min(1, dt * 2.4);
+      gazeY += (gazeTY - gazeY) * Math.min(1, dt * 2.4);
+      camAt.lerpVectors(camera.position, camBase, Math.min(1, dt * 3.2));
+    }
+    const settle = reduce.matches || !enterAt ? 1 : Math.min(1, (now - enterAt) / 900);
+    const ease = 1 - Math.pow(1 - settle, 3);
+    camera.position.set(
+      camAt.x + gazeX * 0.42,
+      camAt.y - gazeY * 0.16 + (1 - ease) * 0.3,
+      camAt.z + (1 - ease) * 1.6,
+    );
+    camera.lookAt(camLook);
     renderer.render(scene, camera);
   }
 
@@ -534,7 +643,6 @@ export function createStage(canvas) {
     dispose() {
       this.stop();
       ro.disconnect();
-      io.disconnect();
       canvas.removeEventListener("pointerdown", onDown);
       canvas.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
