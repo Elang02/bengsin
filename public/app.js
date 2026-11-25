@@ -1,4 +1,4 @@
-// Bengsin — frontend. One page, two views: hitung (public) and garage (account).
+// Bengsin frontend. One page, two views: hitung (public) and garage (account).
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
@@ -84,7 +84,7 @@ async function api(path, { method = "GET", body, retry = true } = {}) {
   try {
     res = await fetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
   } catch {
-    const err = new Error("Tidak bisa menghubungi server. Periksa koneksi.");
+    const err = new Error("Server tidak menjawab. Periksa koneksi, lalu coba lagi.");
     err.offline = true;
     throw err;
   }
@@ -98,7 +98,7 @@ async function api(path, { method = "GET", body, retry = true } = {}) {
     const data = await res.json().catch(() => ({}));
     let message = typeof data.detail === "string" ? data.detail : "";
     if (!message && Array.isArray(data.detail)) message = data.detail[0]?.msg || "";
-    const err = new Error(message || `Permintaan gagal (${res.status})`);
+    const err = new Error(message || `Permintaan ditolak (${res.status})`);
     err.status = res.status;
     throw err;
   }
@@ -278,7 +278,7 @@ function renderReadout() {
     veh.textContent = "Belum ada kendaraan";
     setFigure("—", true);
     $("#copyBtn").disabled = true;
-    sub.textContent = S.city ? `Harga ${S.city.name} siap dipakai.` : "Pilih kota dan kendaraan.";
+    sub.textContent = S.city ? `Harga ${S.city.name} sudah masuk.` : "Pilih kota dan kendaraan.";
     chain.innerHTML = "";
     renderDuel(a, ca, null, null);
     return;
@@ -305,8 +305,8 @@ function renderReadout() {
 
   chain.innerHTML = [
     ["Jarak tempuh", `${nf0.format(Math.round(ca.km))} km`],
-    ["Bensin", `${dec(ca.liters)} L`],
-    ["BBM", `${prettyFuelName(ca.fuel.name)} · ${rp(ca.fuel.price)}/L`],
+    ["Bensin terpakai", `${dec(ca.liters)} L`],
+    ["Harga", `${prettyFuelName(ca.fuel.name)} · ${rp(ca.fuel.price)}/L`],
   ].map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("");
 
   renderDuel(a, ca, b, cb);
@@ -434,7 +434,7 @@ function renderBoard() {
 
   if (!rows.length) {
     table.innerHTML = "";
-    note.textContent = "Belum ada harga untuk kota ini. Sinkronisasi berjalan tiap hari.";
+    note.textContent = "Harga untuk kota ini belum masuk. Datanya ditarik tiap hari.";
     return;
   }
 
@@ -488,8 +488,8 @@ function renderBoard() {
   </table>`;
 
   note.textContent = veh
-    ? "Baris pudar tidak cocok untuk kendaraan yang dipilih. Yang bertanda dipakai adalah BBM termurah yang memenuhi oktan minimum."
-    : "Pilih kendaraan untuk melihat BBM mana yang cocok.";
+    ? "Baris pudar berarti oktannya kurang untuk kendaraan ini. Tanda dipakai menempel di BBM termurah yang masih memenuhi syarat."
+    : "Pilih kendaraan dulu, nanti kelihatan mana yang oktannya cukup.";
 }
 
 // ---------------------------------------------------------------------------
@@ -647,7 +647,7 @@ function renderAll() {
   renderBoard();
   $("#vHint").textContent = S.compareMode
     ? "Pilih kendaraan kedua untuk dibandingkan."
-    : "Preset berisi konsumsi resmi pabrikan. Angka konsumsi nyata biasanya lebih rendah.";
+    : "Preset pakai konsumsi resmi pabrikan. Di jalan, angka nyatanya biasanya lebih rendah.";
 }
 
 // ---------------------------------------------------------------------------
@@ -662,7 +662,7 @@ function renderGarage() {
   if (!S.token) {
     out.hidden = false;
     inside.hidden = true;
-    lede.textContent = "Kendaraan dan catatan pengisian BBM milikmu.";
+    lede.textContent = "Kendaraanmu dan catatan tiap isi bensin.";
     return;
   }
 
@@ -688,7 +688,7 @@ function renderVehicleList() {
   const list = $("#vehicleList");
 
   if (!S.vehicles.length) {
-    list.innerHTML = `<li class="empty">Belum ada kendaraan. Tambah satu, lalu catat pengisian pertamamu.</li>`;
+    list.innerHTML = `<li class="empty">Belum ada kendaraan. Tambah satu, lalu catat pengisian pertama.</li>`;
     return;
   }
 
@@ -734,7 +734,7 @@ function renderExpenseForm() {
   $("#expenseSubmit").disabled = false;
   const current = vSel.value;
   vSel.innerHTML = S.vehicles
-    .map((v) => `<option value="${v.id}">${v.nickname} — ${v.brand} ${v.model}</option>`)
+    .map((v) => `<option value="${v.id}">${v.nickname} · ${v.brand} ${v.model}</option>`)
     .join("");
   if (current && S.vehicles.some((v) => String(v.id) === current)) vSel.value = current;
 
@@ -755,7 +755,7 @@ function renderFuelOptions() {
 
   const previous = fSel.value;
   fSel.innerHTML = `<option value="">Pilih BBM</option>` + fuels
-    .map((f) => `<option value="${f.id}" data-price="${f.price}">${prettyFuelName(f.name)} — ${rp(f.price)}/L</option>`)
+    .map((f) => `<option value="${f.id}" data-price="${f.price}">${prettyFuelName(f.name)} · ${rp(f.price)}/L</option>`)
     .join("");
   if (previous && fuels.some((f) => String(f.id) === previous)) fSel.value = previous;
 
@@ -812,7 +812,7 @@ function renderExpenseList() {
   $("#histMeta").textContent = vehicle ? `Menampilkan ${vehicle.nickname}` : `${all.length} catatan`;
 
   if (!all.length) {
-    box.innerHTML = `<p class="empty">Belum ada catatan pengisian. Setiap isi bensin bisa dicatat di sini, lengkap dengan harga per liternya.</p>`;
+    box.innerHTML = `<p class="empty">Belum ada catatan. Tiap isi bensin bisa dicatat di sini, sekalian harga per liternya.</p>`;
     return;
   }
 
@@ -915,8 +915,8 @@ function applyAuthMode(mode) {
   $("#authSubmit").textContent = isLogin ? "Masuk" : "Daftar";
   $("#authPassword").autocomplete = isLogin ? "current-password" : "new-password";
   $("#authNote").textContent = isLogin
-    ? "Akun dipakai untuk menyimpan garage dan riwayat pengisian."
-    : "Password minimal 8 karakter. Disimpan sebagai hash bcrypt, bukan teks biasa.";
+    ? "Akun cuma dipakai untuk menyimpan garage dan riwayat pengisian."
+    : "Password minimal 8 karakter. Yang disimpan hash bcrypt-nya, bukan password aslinya.";
 }
 
 async function submitAuth(e) {
@@ -929,7 +929,7 @@ async function submitAuth(e) {
 
   err.hidden = true;
   if (!email || !password) {
-    err.textContent = "Email dan password perlu diisi.";
+    err.textContent = "Isi email dan password dulu.";
     err.hidden = false;
     return;
   }
@@ -949,13 +949,13 @@ async function submitAuth(e) {
       const login = await api("/auth/login", { method: "POST", body: { email, password }, retry: false });
       applySession(login, email);
       closeAuth();
-      toast("Akun dibuat. Kamu sudah masuk.");
+      toast("Akun dibuat, kamu langsung masuk.");
       go("garage");
     } else {
       const data = await api("/auth/login", { method: "POST", body: { email, password }, retry: false });
       applySession(data, email);
       closeAuth();
-      toast("Masuk. Garage dibuka.");
+      toast("Sudah masuk. Garage terbuka.");
       go("garage");
     }
   } catch (ex) {
@@ -1027,7 +1027,7 @@ function copySummary() {
     return;
   }
   const lines = [
-    `Bengsin — biaya bensin ${vehicleFull(a)}`,
+    `Bengsin · biaya bensin ${vehicleFull(a)}`,
     `${S.city.name} · ${S.distance} km sekali jalan · ${S.dpw} hari/minggu (${c.wd} hari)`,
     `${nf0.format(Math.round(c.km))} km/bulan · ${dec(c.liters)} L · ${prettyFuelName(c.fuel.name)} ${rp(c.fuel.price)}/L`,
     `${rp(c.cost)}/bulan`,
@@ -1056,7 +1056,7 @@ function fallbackCopy(text, done) {
   ta.style.opacity = "0";
   document.body.appendChild(ta);
   ta.select();
-  try { document.execCommand("copy"); done(); } catch { toast("Tidak bisa menyalin. Pilih teksnya manual."); }
+  try { document.execCommand("copy"); done(); } catch { toast("Gagal menyalin. Blok teksnya, lalu salin sendiri."); }
   ta.remove();
 }
 
@@ -1335,12 +1335,12 @@ async function submitVehicle(e) {
   };
 
   if (!payload.nickname || !payload.brand || !payload.model) {
-    err.textContent = "Nama panggilan, merek, dan model perlu diisi.";
+    err.textContent = "Isi nama panggilan, merek, dan model.";
     err.hidden = false;
     return;
   }
   if (!payload.min_octane || !payload.kmpl) {
-    err.textContent = "Oktan minimum dan konsumsi (km/L) perlu diisi.";
+    err.textContent = "Isi oktan minimum dan konsumsi (km/L).";
     err.hidden = false;
     return;
   }
@@ -1353,7 +1353,7 @@ async function submitVehicle(e) {
     $("#addVehicleBtn").textContent = "Tambah";
     $("#addVehicleBtn").setAttribute("aria-expanded", "false");
     await loadGarage();
-    toast("Kendaraan disimpan.");
+    toast("Kendaraan sudah disimpan.");
   } catch (ex) {
     err.textContent = ex.message;
     err.hidden = false;
@@ -1393,7 +1393,7 @@ async function submitExpense(e) {
     return;
   }
   if (!payload.volume || !payload.cost) {
-    err.textContent = "Total bayar dan liter perlu diisi. Pilih BBM supaya liternya bisa dihitung.";
+    err.textContent = "Isi total bayar dan liter. Kalau BBM-nya dipilih, liternya dihitung otomatis.";
     err.hidden = false;
     return;
   }
@@ -1403,7 +1403,7 @@ async function submitExpense(e) {
     await api("/expenses/", { method: "POST", body: payload });
     $("#expenseForm").reset();
     await loadGarage();
-    toast("Catatan pengisian tersimpan.");
+    toast("Pengisian tercatat.");
   } catch (ex) {
     err.textContent = ex.message;
     err.hidden = false;

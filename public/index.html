@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Bengsin — hitung biaya bensin bulanan</title>
-  <meta name="description" content="Hitung dan bandingkan biaya bensin bulanan mobil atau motor. Harga Pertamina, BP, dan Shell mengikuti kota, diperbarui tiap hari.">
+  <title>Bengsin: hitung biaya bensin bulanan</title>
+  <meta name="description" content="Hitung biaya bensin bulanan mobil atau motor, lalu bandingkan dua kendaraan. Harga Pertamina, BP, dan Shell ikut kota yang kamu pilih, ditarik dari MyPertamina tiap hari.">
   <meta name="theme-color" content="#e7e8e3">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preload" href="/fonts/saira-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -37,7 +37,7 @@
     <section class="page" id="page-hitung" role="tabpanel" aria-labelledby="tab-hitung" tabindex="-1">
       <div class="wrap intro">
         <h1>Hitung bensin sebulan.</h1>
-        <p class="lede">Isi jarak harian dan pilih kendaraan. Harga Pertamina, BP, dan Shell ikut kota yang kamu pilih, disinkronkan tiap hari dari MyPertamina.</p>
+        <p class="lede">Isi jarak harian, pilih kendaraan, biaya sebulannya langsung kelihatan. Harga Pertamina, BP, dan Shell ikut kota yang kamu pilih dan ditarik dari MyPertamina tiap hari.</p>
         <p class="ticker" id="ticker" aria-live="polite"><span class="ticker__lab">Harga hari ini</span><span id="tickerBody"></span></p>
       </div>
 
@@ -75,7 +75,7 @@
             </div>
 
             <ul class="vlist" id="vlist" aria-labelledby="vMeta"></ul>
-            <p class="hint" id="vHint">Preset berisi konsumsi resmi pabrikan. Angka konsumsi nyata biasanya lebih rendah.</p>
+            <p class="hint" id="vHint">Preset pakai konsumsi resmi pabrikan. Di jalan, angka nyatanya biasanya lebih rendah.</p>
           </div>
 
           <div class="field">
@@ -184,13 +184,13 @@
     <section class="page" id="page-garage" role="tabpanel" aria-labelledby="tab-garage" tabindex="-1" hidden>
       <div class="wrap intro intro--tight">
         <h1>Garage</h1>
-        <p class="lede" id="garageLede">Kendaraan dan catatan pengisian BBM milikmu.</p>
+        <p class="lede" id="garageLede">Kendaraanmu dan catatan tiap isi bensin.</p>
       </div>
 
       <div class="wrap guest" id="garageOut" hidden>
         <div class="empty empty--big">
           <h2>Masuk dulu, ya.</h2>
-          <p>Garage menyimpan kendaraan dan riwayat pengisian. Hitung biaya bulanan tetap bisa dipakai tanpa akun.</p>
+          <p>Garage menyimpan kendaraan dan riwayat pengisian. Bagian hitung tetap terbuka tanpa akun.</p>
           <div class="empty__actions">
             <button class="btn" type="button" data-open-auth="login">Masuk</button>
             <button class="btn btn--line" type="button" data-open-auth="register">Buat akun</button>
@@ -198,9 +198,9 @@
         </div>
 
         <dl class="docket">
-          <div><dt>Kendaraan</dt><dd>Mobil dan motor dengan konsumsi aslinya, bukan angka pabrik.</dd></div>
-          <div><dt>Riwayat</dt><dd>Tiap pengisian dicatat; total bulan ini dihitung ulang sendiri.</dd></div>
-          <div><dt>Ringkasan</dt><dd>Salin biaya bulan ke laporan, grup, atau patungan.</dd></div>
+          <div><dt>Kendaraan</dt><dd>Konsumsi dari angka nyatamu, bukan angka brosur.</dd></div>
+          <div><dt>Riwayat</dt><dd>Setiap isi bensin tercatat, total bulan ini ikut terhitung.</dd></div>
+          <div><dt>Ringkasan</dt><dd>Biaya bulan bisa disalin ke laporan, grup, atau patungan.</dd></div>
         </dl>
       </div>
 
@@ -301,7 +301,7 @@
                   <input id="eLiters" type="number" min="0" step="0.01" inputmode="decimal" placeholder="5" aria-describedby="eHint">
                 </div>
               </div>
-              <p class="hint" id="eHint">Isi total bayar, liternya dihitung dari harga BBM yang dipilih.</p>
+              <p class="hint" id="eHint">Isi total bayar. Liternya dihitung dari harga BBM yang kamu pilih.</p>
               <p class="err" id="expenseError" role="alert" hidden></p>
               <div class="form__actions">
                 <button class="btn btn--sm" type="submit" id="expenseSubmit">Simpan catatan</button>
@@ -347,7 +347,7 @@
       <p class="err" id="authError" role="alert" hidden></p>
       <button class="btn btn--full" type="submit" id="authSubmit">Masuk</button>
     </form>
-    <p class="auth__note" id="authNote">Akun dipakai untuk menyimpan garage dan riwayat pengisian.</p>
+    <p class="auth__note" id="authNote">Akun cuma dipakai untuk menyimpan garage dan riwayat pengisian.</p>
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>

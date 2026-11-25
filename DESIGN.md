@@ -1,4 +1,4 @@
-# Bengsin — design system
+# Bengsin, design system
 
 World: **forecourt instrument**. A price board you read from a car window, crossed with
 a receipt. Paper, ink, hairlines, tabular numbers, one oxblood accent. No cards, no
@@ -61,7 +61,7 @@ Numbers are always tabular. Money is `Rp 303.448`; litres `30,3`; km/L `14,5`.
 
 - Page: `max-width: 1160px`, `--pad-x: 24px` (18 px under 420 px), sticky 60 px header
   with a 1 px rule.
-- Hitung: intro (h1 + lede at 84 % of the text column), then a two-column layout —
+- Hitung: intro (h1 + lede at 84 % of the text column), then a two-column layout:
   `minmax(0,1fr) 384px`, gap 56 px. The right column is a dark readout panel that sticks
   at 84 px while the form scrolls.
 - Fields are separated by hairlines, never boxed. A field is: label + right-aligned meta
@@ -70,9 +70,9 @@ Numbers are always tabular. Money is `Rp 303.448`; litres `30,3`; km/L `14,5`.
   It is a flat text row on desktop and a horizontally swipeable strip under 640 px.
 - Price board: a real `<table>`, brand cells span their group with `rowspan`, prices
   right-aligned. Full width, below the fold.
-- Garage: `380px minmax(0,1fr)` — vehicles left, ledger right. Sections carry a rule
+- Garage: `380px minmax(0,1fr)`, vehicles left, ledger right. Sections carry a rule
   under their head, not a box.
-- Duel band: full width, between the form and the price board — `minmax(0,1fr) 344px`.
+- Duel band: full width, between the form and the price board: `minmax(0,1fr) 344px`.
   Left is the 3D stage, right is the comparison in hairline rows. It appears as soon as
   one vehicle is chosen (one vehicle: the stage plus a prompt for a second), because the
   stage is the reason to come back to the page.
@@ -94,22 +94,22 @@ Numbers are always tabular. Money is `Rp 303.448`; litres `30,3`; km/L `14,5`.
   name, figure, per-workday line, a `<dl>` chain (Jarak tempuh / Bensin / BBM),
   comparison block, and one hairline button.
 - **Price table**: header in 0.75rem muted, rows separated by `--line`, groups by
-  `--line-2`. The picked fuel row tints `#eef0e6` and its product line gets an oxblood
+  `--line-2`. The picked row keeps the plain background; its product line gets an oxblood
   "dipakai …" note. Incompatible fuels drop to 45 % opacity with a "tidak cocok" note.
   Every compatible row also prints what that fuel would cost this vehicle per month,
-  under the price — the table doubles as the "what if I switch" answer.
+  under the price, so the table doubles as the "what if I switch" answer.
 - **Duel stage**: a `<canvas>` rendered by three.js, loaded lazily the first time a
   vehicle is chosen. Two vehicles stand side by side on a soft contact shadow, lit by a
   prefiltered studio environment (`PMREMGenerator` over `RoomEnvironment`) under
   ACES tone mapping; drag turns the pair (yaw ±, pitch small), the pair drifts slowly on
   its own after 2.6 s idle, and the camera leans a few centimetres toward the pointer.
   Paint is `MeshPhysicalMaterial` with clearcoat, glass is a separate low-roughness
-  surface, everything else stays matte — one flat material made every body look like a
+  surface, everything else stays matte; one flat material made every body look like a
   toy. Body style follows the model name, so two cars
   never share a silhouette; a motorcycle gets the bike model at 2.15 m against 4.5 m for
   cars, so the scale difference is real. Cars are oxblood (A) and bone (B); the bars in
   the right column carry the same two colours, so identity is colour, not the verdict.
-  Authored wheels stay parked — they carry baked orientation and tumble if spun about a
+  Authored wheels stay parked. They carry baked orientation and tumble if spun about a
   guessed axis. If WebGL, the module or a GLB fails, `data-failed="true"` hides the
   canvas and the comparison still reads.
 - **Docket**: the signed-out garage explains itself as three hairline rows (Kendaraan /
@@ -145,13 +145,13 @@ One easing: `cubic-bezier(.22,.8,.2,1)`, and only transform/opacity move.
 The duel stage runs its own loop: a 150 ms damped yaw follow on drag, a 0.004 m idle bob,
 a damped camera parallax toward the pointer, and a 900 ms entrance dolly the first time
 the pair appears. The loop pauses on `document.hidden` and when the canvas leaves the
-viewport (a rect test, not an observer — the band is hidden at load, and an observer can
+viewport (a rect test, not an observer: the band is hidden at load, and an observer can
 stay stale), and the canvas is re-measured before every framing because it once measured
 0×0 while hidden and left the camera with a stale aspect. On reduced motion the camera
 snaps instead of travelling.
 
 Nothing animates on load and nothing animates on scroll. `prefers-reduced-motion: reduce`
-collapses every duration to 0.01 ms, which also disables the car's slide — the number
+collapses every duration to 0.01 ms, which also disables the car's slide; the number
 input remains the way to move it.
 
 ## Known detector exceptions

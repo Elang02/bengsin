@@ -19,13 +19,13 @@ bertahan antar invocation, jadi produksi wajib Postgres.
 | `DATABASE_URL` | Postgres di produksi |
 | `SECRET_KEY` | Kunci JWT |
 | `TOKEN_EXPIRE_MINUTES` | Umur access token, default 120 |
-| `CRON_SECRET` | Mengunci `/cron/fuel-sync`; tanpa ini endpoint terbuka |
+| `CRON_SECRET` | Mengunci `/cron/fuel-sync`. Tanpa ini endpoint terbuka |
 | `FUEL_PRICE_URL` | Menimpa sumber harga |
 
 ## Model
 
 `User`, `Vehicle` (garage), `Expense`, `VehiclePreset`, `FuelPrice`, `City`, `CarBrand`,
-`MotorBrand`. Tabel dibuat saat startup lewat `Base.metadata.create_all`; tidak ada
+`MotorBrand`. Tabel dibuat saat startup lewat `Base.metadata.create_all`. Tidak ada
 migrasi Alembic.
 
 ## Endpoint
@@ -54,10 +54,10 @@ Swagger di `/docs`, skema di `/openapi.json`.
 ## Harga BBM harian
 
 Vercel Cron memanggil `GET /cron/fuel-sync` sekali sehari (`0 22 * * *` UTC, 05.00 WIB).
-Sumbernya feed publik `nasgunawann/bensin-api` yang mengambil MyPertamina tiap jam,
+Sumbernya feed publik `nasgunawann/bensin-api` yang mengambil MyPertamina tiap jam
 karena pertamina.com memakai Blazor dan tidak bisa dibaca tanpa browser.
 
 - Isi `CRON_SECRET` di environment Vercel.
 - Uji manual: `curl -H "Authorization: Bearer $CRON_SECRET" https://<domain>/cron/fuel-sync`
-- Provinsi disimpan sebagai kota dengan slug (`aceh`, `sumatera-utara`, …), sehingga
+- Provinsi disimpan sebagai kota dengan slug (`aceh`, `sumatera-utara`, …) sehingga
   sinkronisasi berulang tidak menggandakan baris.

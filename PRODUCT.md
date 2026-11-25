@@ -1,4 +1,4 @@
-# Bengsin — product truth
+# Bengsin, product truth
 
 A fuel-cost calculator for Indonesian drivers. You enter a city, a daily distance, and
 how many days a week you drive; it tells you what the month costs in rupiah, using the
@@ -15,17 +15,17 @@ a fleet manager; there is no dashboard, no report export, no team.
 
 ## Surfaces
 
-1. **Hitung** — the calculator. No account needed. City, vehicle, distance, workdays,
+1. **Hitung**: the calculator. No account needed. City, vehicle, distance, workdays,
    result, price board, and a 3D comparison stage where the chosen vehicles stand side by
    side and can be turned by dragging. The stage is decoration with a job: it makes the
    two numbers feel like two vehicles.
-2. **Garage** — vehicles and fill-ups for signed-in users. Ledger, not analytics.
-3. **Auth** — a modal dialog over the current page, never a separate route.
+2. **Garage**: vehicles and fill-ups for signed-in users. Ledger, not analytics.
+3. **Auth**: a modal dialog over the current page, never a separate route.
 
 ## What the numbers mean
 
 - Monthly km = distance × 2 (there and back) × workdays per month.
-- Workdays per month = ⌈30 × days-per-week ÷ 7⌉ — 22 for a 5-day week. Overridable.
+- Workdays per month = ⌈30 × days-per-week ÷ 7⌉, 22 for a 5-day week. Overridable.
 - Litres = km ÷ km/L. Cost = litres × price of the cheapest fuel that fits.
 - A fuel fits when `fuel_type` matches `engine_type` and its octane is at least the
   vehicle's `min_octane`. Diesel never fits a petrol engine.
@@ -34,15 +34,15 @@ a fleet manager; there is no dashboard, no report export, no team.
 
 ## Data the app reads
 
-- `GET /cities` — 118 rows, one per city or province group.
-- `GET /fuel-prices` — 818 rows across 3 brands (Pertamina, BP, Shell). Two source
+- `GET /cities`: 118 rows, one per city or province group.
+- `GET /fuel-prices`: 818 rows across 3 brands (Pertamina, BP, Shell). Two source
   datasets overlap; the client de-duplicates by brand + product name, preferring the
   mixed-case rows.
-- `GET /presets` — 97 vehicles, 68 cars and 29 motorbikes, official-ish consumption.
+- `GET /presets`: 97 vehicles, 68 cars and 29 motorbikes, official-ish consumption.
   `vehicle_type` casing is inconsistent (`Car` / `CAR` / `Motorcycle` / `MOTORBIKE`);
   legacy motorbike rows have an empty `brand`.
 - `GET /garage/`, `POST /garage/`, `DELETE /garage/{id}`
-- `GET /expenses/`, `POST /expenses/`, `DELETE /expenses/{id}` — the server stamps
+- `GET /expenses/`, `POST /expenses/`, `DELETE /expenses/{id}`; the server stamps
   `log_date` as today; no date can be sent.
 
 ## Constraints we do not fight
@@ -54,8 +54,8 @@ a fleet manager; there is no dashboard, no report export, no team.
   vehicle type and, for cars, by a hash of the model name. They are not a catalogue: a
   Toyota Avanza may appear as the sedan model and a Daihatsu Rocky as the SUV. The stage
   never claims to show your exact car, and the copy never says it does.
-- Prices are a mirror, not a live Pertamina feed. The UI says "disinkronkan tiap hari"
-  and never claims real-time.
+- Prices are a mirror, not a live Pertamina feed. The UI says the price is "ditarik dari
+  MyPertamina tiap hari" and never claims real-time.
 
 ## Non-goals
 
