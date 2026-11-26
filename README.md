@@ -113,7 +113,7 @@ public/
   app.js              state, render, panggilan API
   scene.js            panggung 3D perbandingan (three.js, dimuat saat dipakai)
   models/             GLB kendaraan, CC BY 3.0 (lihat Kredit)
-  vendor/             three.js 0.169.0 + GLTFLoader, di-host sendiri
+  vendor/             three.js 0.169.0, GLTFLoader, DRACOLoader, decoder Draco
   fonts/              Saira variable, di-host sendiri
   favicon.svg
 docs/screenshot.jpg
@@ -128,13 +128,16 @@ run.py                launcher lokal
 - **three.js** 0.169.0, MIT. Ada di `public/vendor/` bersama `GLTFLoader`. Rig lampunya
   dibangun di `scene.js`, jadi tidak ada berkas environment yang perlu diunduh. Model 3D
   dimuat lewat import map, tanpa langkah build.
-- **Model kendaraan**: diunduh lewat [poly.pizza](https://poly.pizza), disimpan di
-  `public/models/`, semuanya CC BY 3.0: "Dodge Charger" oleh David Sirera, "Mazda RX-7"
-  oleh IvOfficial, "Range Rover" oleh IvOfficial, dan "Motorcycle" oleh jeremy. Bodinya
-  dipilih menurut tipe kendaraan, bukan nama modelnya: sedan, mobil kecil, mobil tinggi.
-  Bodi yang punya slot cat sendiri dicat ulang mengikuti palet situs (oxblood untuk
-  kendaraan A, grafit untuk B). Yang teksturnya menyatu diberi lapis tipis supaya tetap
-  beda tanpa mengecat bannya. Kredit juga tampil di kaki halaman.
+- **Model kendaraan**: satu bodi mobil untuk semua baris mobil, plus satu motor. Bodinya
+  "Ferrari 458 Italia" oleh vicent091036, diambil dari contoh tiga.js dan disimpan di
+  `public/models/ferrari.glb`. Motornya oleh jeremy lewat
+  [poly.pizza](https://poly.pizza). Keduanya CC BY 3.0, dan kreditnya juga tampil di kaki
+  halaman. Bodi mobil dipilih karena mesh-nya terpisah per material (cat, kaca, krom,
+  karet, jok), jadi cat bisa diwarnai tanpa kehilangan kilap. Bodi-bodi low-poly
+  sebelumnya dibuang karena panelnya cuma satu warna palet, hasilnya terlihat seperti
+  karton.
+- **Draco**: `public/vendor/draco/` menyimpan decoder-nya, jadi GLB terkompresi dibuka
+  tanpa menghubungi CDN saat halaman jalan.
 - **Saira** (Omnibus-Type), SIL Open Font License. Ada di `public/fonts/`.
 
 ## Lisensi

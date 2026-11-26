@@ -50,15 +50,13 @@ a fleet manager; there is no dashboard, no report export, no team.
 - `engine_type` accepts only `GASOLINE` and `DIESEL`. Electric vehicles have no fuel
   price to compare, so they are not offered.
 - A fill-up has no date input, because the API has none.
-- The 3D models are four CC BY 3.0 assets: a sedan, a small car, a tall wagon and a naked
-  bike. The body follows the vehicle's type, so a hatchback row never shows a sedan and
-  an MPV row never shows a coupe; that also means Avanza, Xpander and Innova share one
-  silhouette, which is the point. Colour separates the two slots instead: A is oxblood,
-  B is graphite, on whichever body they stand. The stage never claims to show your exact car, and the
-  copy never says it does. Models whose panels are flat triangles were dropped even when
-  their silhouette matched better: no lighting makes faceted bodywork read as sheet
-  metal, and a cartoon van parked beside a real body reads as two different products in
-  one picture.
+- Two assets carry the stage: one car body and one motorcycle. Every car row shows the
+  same body, and colour separates the two slots, A oxblood and B graphite. A catalogue of
+  silhouettes was tried and dropped. Flat palettes and shared atlases made those models
+  read as punched out beside a properly modelled car, and a pair of them looked like two
+  different products in one picture. The stage never claims to show your exact vehicle,
+  and the copy never says it does. The car body comes from the three.js examples, modelled
+  by vicent091036; the bike is by jeremy (poly.pizza). Both are credited in the footer.
 - Prices are a mirror, not a live Pertamina feed. The UI says the price is "ditarik dari
   MyPertamina tiap hari" and never claims real-time.
 

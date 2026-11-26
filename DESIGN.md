@@ -111,26 +111,21 @@ Numbers are always tabular. Money is `Rp 303.448`; litres `30,3`; km/L `14,5`.
   safe frame at three yaws: the resting one and both ends of the idle swing. Framing the
   pose the user sees is the whole job; a box measured head-on does not contain a turned
   car, and a nose used to slip past the edge once the drift settled.
-  Each asset names its own paint slot, so the stage clones the authored material and
-  tints its colour: normal and roughness maps stay, and the body keeps its creases.
-  Replacing every material with one clean surface is what made the earlier set read as
-  toys. Glass is tinted and slightly rough, because a mirror finish reflected the
-  softbox into pale panels that looked like white windows.
-  A single-atlas body carries its colour in a 256 px palette, so multiplying a tone into
-  a bronze atlas only makes a darker bronze. The palette is greyed once at load, then the
-  tone owns the hue: A reads oxblood and B graphite whichever body they sit on. Its tyres
-  share that atlas material, so they are swapped by mesh name for matte rubber first, or
-  they would be painted with the car.
-  The body is chosen from the vehicle's type, not its name: a sedan row gets the sedan,
-  a hatchback row gets the small car, and every tall two-box body (SUV, MPV, pickup) gets
-  the tall one. Fifty-six car names share three silhouettes on purpose; a catalogue of
-  fifty-six models is the thing this stage is not. A same-type pair splits on tone instead
-  of pretending to be two different cars. The tall body is a single-atlas model, so it
-  takes the grey-and-tint treatment instead of a repaint, and its spare and luggage are
-  removed by node name: both read as expedition kit, not as a family car. A motorcycle
-  takes the same paint, lifted, because its body material is a very dark navy; it sits at
-  1.98 m against 4.3 to 5 m for cars, so the scale difference is real. Cars are oxblood (A) and graphite (B); the bars in the right
-  column carry the same two colours, so identity is colour, not the verdict.
+  One body carries every car row: a 458-class spider whose meshes are split by
+  material (paint, glass, chrome, rubber, leather), 358 788 triangles, no textures at
+  all. That split is the thing low-poly sets never have, so the paint keeps its long
+  highlight and the interior stays visible behind tinted glass. The earlier set of three
+  silhouettes was dropped because their panels were flat palette swatches: they looked
+  punched out next to a properly modelled body, and a catalogue of silhouettes was never
+  the point of the band. A car row and a motorcycle row still differ, because the bike
+  is its own asset.
+  The body is Draco-compressed, so `DRACOLoader` and the decoder ship in
+  `public/vendor/draco/` and nothing is fetched from a CDN at runtime. Paint is tinted
+  through its own material, glass is dark, slightly rough and only faintly reflective
+  (a mirror finish turned the windows into pale panels), and the authored chrome, carbon
+  and leather are left alone. Tyres are swapped by mesh name for matte rubber so they
+  never take the body colour. Cars come in oxblood (A) and graphite (B); the bars in the
+  right column carry the same two colours, so identity is colour, not the verdict.
   The tyres are seated on y=0 after a final box pass, and the idle bob is added on top of
   that offset, never instead of it. Authored wheels stay parked: they carry baked
   orientation and tumble if spun about a guessed axis. If WebGL, the module or a GLB

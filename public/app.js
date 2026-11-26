@@ -141,36 +141,11 @@ function signOut() {
 
 const isMotor = (v) => /^mot/i.test(v.vehicle_type || "");
 
-// The three-dimensional band shows a body per vehicle type, not per model name:
-// fifty-six presets share four shapes, and giving each name its own model read as
-// a zoo. The longest matching word wins, so "city hatchback" beats "city" and
-// "yaris cross" beats "yaris".
-const BODY_WORDS = {
-  small: ["ayla", "brio", "city hatchback", "mirage", "march", "baleno", "ignis", "swift", "mazda2", "yaris"],
-  tall: [
-    "gran max", "sigra", "xenia", "mobilio", "livina", "serena", "ertiga", "innova", "avanza",
-    "veloz", "xpander", "confero", "cortez", "alphard", "carry",
-    "rocky", "terios", "br-v", "cr-v", "hr-v", "mu-x", "cx-3", "cx-5", "pajero", "kicks", "xl7",
-    "fortuner", "raize", "rush", "yaris cross", "xpander cross", "almaz", "atto",
-    "d-max", "triton", "navara",
-  ],
-  sedan: ["accord", "city", "civic", "camry", "corolla", "altis", "vios", "mazda3"],
-};
-
+// Every car row gets the same body; only the colour differs. The stage is a
+// comparison instrument, not a catalogue, and one body modelled properly beats
+// three silhouettes that read as toys. Motorcycles keep the bike.
 function bodyOf(v) {
-  if (isMotor(v)) return "moto";
-  const name = `${v.brand || ""} ${v.model || ""} ${v.trim_variant || ""}`.toLowerCase();
-  let best = "";
-  let width = 0;
-  for (const [body, words] of Object.entries(BODY_WORDS)) {
-    for (const word of words) {
-      if (word.length > width && name.includes(word)) {
-        best = body;
-        width = word.length;
-      }
-    }
-  }
-  return best || "sedan";
+  return isMotor(v) ? "moto" : "car";
 }
 
 // ---------------------------------------------------------------------------

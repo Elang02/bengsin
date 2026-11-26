@@ -3,6 +3,7 @@
 // Loaded lazily from app.js the first time a comparison appears.
 import * as THREE from "./vendor/three.module.min.js";
 import { GLTFLoader } from "./vendor/loaders/GLTFLoader.js";
+import { DRACOLoader } from "./vendor/loaders/DRACOLoader.js";
 
 const GLASS = 0x22241d;
 const TYRE = 0x0e0f0b;
@@ -141,21 +142,20 @@ function buildCar(tone) {
 // are flat triangles, and a cartoon van sitting beside a real body reads as two
 // different products in one picture.
 const SOURCES = {
-  sedan: { url: "/models/car-sedan.glb", paint: ["red_chasis"], glass: ["glass"], len: 5.0 },
-  // Bodies are picked by vehicle type, not by model name: `small` covers the
-  // hatchback and city-car rows, `tall` every two-box body (SUV, MPV, pickup).
-  // `wash` multiplies the authored albedo with a near-white tone: it shifts the
-  // colour without turning tyres and glass into paint, which a full repaint would
-  // do on a single-atlas model. `hide` drops the roof rack and the spare: both
-  // read as expedition kit, not as a family car.
-  small: { url: "/models/car-sport.glb", paint: ["body_paint"], glass: ["glass"], len: 4.3 },
-  tall: { url: "/models/car-suv.glb", paint: [], glass: ["glass"], rubber: ["tire1", "tire2", "tire3", "tire4"], len: 4.55, wash: [0xc4536e, 0x97a1ab], hide: ["spare tire", "bag"] },
-  // A naked bike: its panels are separate colour materials, so it takes the same
-  // tone as the car beside it. `lift` brightens that tone, because the authored
-  // body material is a very dark navy and reads as black under studio light.
+  // One body for every car row: a 458-class spider with separate materials for
+  // paint, glass, chrome, rubber and interior. At this size the material split is
+  // what makes it read as a car; the earlier low-poly set had a single atlas, so
+  // every panel shared one flat colour and the result looked punched out.
+  // A motorcycle row still gets the bike.
+  car: { url: "/models/ferrari.glb", paint: ["body_color"], glass: ["glass_gray"], rubber: ["tires"], len: 4.52 },
   moto: { url: "/models/moto.glb", paint: ["455a64", "039be5"], glass: [], len: 1.98, lift: 2.2 },
 };
+// Draco is how most modern free GLBs ship; the decoder lives in the repo so the
+// stage never reaches for a CDN at runtime.
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath("/vendor/draco/");
 const gltfLoader = new GLTFLoader();
+gltfLoader.setDRACOLoader(dracoLoader);
 const sourceCache = new Map();
 
 function loadSource(key) {
@@ -196,43 +196,10 @@ function surface(kind, color) {
 // palette colour; named glass becomes glass; every other material is kept as
 // authored, because those are the parts (tyres, grilles, rims) that carry the
 // shape. Replacing them wholesale is what made the old set read as toys.
-// A single-atlas model carries its colour in a 256 px palette, so multiplying a
-// tone into a bronze atlas only makes a darker bronze. Grey the palette once,
-// then let the tone own the hue: A reads oxblood and B reads graphite whichever
-// body they sit on.
-function greyscale(source) {
-  if (!source || !source.image) return source;
-  if (source.userData.flat) return source.userData.flat;
-  const img = source.image;
-  const canvas = document.createElement("canvas");
-  canvas.width = img.width;
-  canvas.height = img.height;
-  const ctx = canvas.getContext("2d");
-  ctx.drawImage(img, 0, 0);
-  const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const px = data.data;
-  for (let i = 0; i < px.length; i += 4) {
-    const l = px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114;
-    // lift the midtones so a tone multiply keeps the panel creases readable
-    const v = Math.min(255, 34 + l * 0.74);
-    px[i] = px[i + 1] = px[i + 2] = v;
-  }
-  ctx.putImageData(data, 0, 0);
-  const flat = new THREE.CanvasTexture(canvas);
-  flat.flipY = source.flipY;
-  flat.colorSpace = source.colorSpace;
-  flat.wrapS = source.wrapS;
-  flat.wrapT = source.wrapT;
-  flat.needsUpdate = true;
-  source.userData.flat = flat;
-  return flat;
-}
-
 function dressModel(root, profile, tone) {
   const paint = (profile.paint || []).map((s) => s.toLowerCase());
   const glass = (profile.glass || []).map((s) => s.toLowerCase());
   const rubber = (profile.rubber || []).map((s) => s.toLowerCase().replace(/[^a-z0-9]/g, ""));
-  const wash = profile.wash ? new THREE.Color(profile.wash[tone]) : null;
   const rubberMat = rubber.length
     ? new THREE.MeshStandardMaterial({ color: 0x14140f, roughness: 0.85, metalness: 0.05 })
     : null;
@@ -270,10 +237,6 @@ function dressModel(root, profile, tone) {
         keep.envMapIntensity = 0.55;
         return keep;
       }
-      if (wash) {
-        if (keep.map) keep.map = greyscale(keep.map);
-        if (keep.color) keep.color.copy(wash);
-      }
       keep.envMapIntensity = 0.9;
       return keep;
     };
@@ -284,19 +247,6 @@ function dressModel(root, profile, tone) {
 function buildFromTemplate(template, tone, profile, targetLen) {
   const g = template.clone(true);
   dressModel(g, profile, tone);
-  if (profile.hide) {
-    // GLTFLoader sanitises node names ("Spare Tire" arrives as "Spare_Tire"), so
-    // compare on letters alone.
-    const key = (n) => (n || "").toLowerCase().replace(/[^a-z]/g, "");
-    const drop = profile.hide.map(key);
-    const doomed = [];
-    g.traverse((o) => {
-      if (drop.includes(key(o.name))) doomed.push(o);
-    });
-    for (const o of doomed) o.removeFromParent();
-    g.updateMatrixWorld(true);
-  }
-
   // longest horizontal axis becomes the length, then normalise and sit on y=0
   g.updateMatrixWorld(true);
   const raw = new THREE.Box3().setFromObject(g).getSize(new THREE.Vector3());
@@ -429,7 +379,7 @@ export function createStage(canvas) {
   room.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
   pmrem.dispose();
 
-  const camera = new THREE.PerspectiveCamera(26, 1, 0.1, 120);
+  const camera = new THREE.PerspectiveCamera(26, 1, 0.5, 60);
   camera.position.set(0, 2.4, 12);
   camera.lookAt(0, 0.9, 0);
 
@@ -437,9 +387,9 @@ export function createStage(canvas) {
   const key = new THREE.DirectionalLight(0xfff6e2, 3.1);
   key.position.set(7, 11, 8);
   key.castShadow = true;
-  key.shadow.mapSize.set(1024, 1024);
-  key.shadow.bias = -0.0006;
-  key.shadow.normalBias = 0.06;
+  key.shadow.mapSize.set(2048, 2048);
+  key.shadow.bias = -0.0015;
+  key.shadow.normalBias = 0.3;
   key.shadow.radius = 3;
   key.shadow.camera.near = 0.5;
   key.shadow.camera.far = 40;
@@ -516,7 +466,9 @@ export function createStage(canvas) {
     const byHeight = size.y / 2 / Math.tan(fov / 2);
     const byWidth = size.x / 2 / (Math.tan(fov / 2) * Math.max(camera.aspect, 0.6));
     // narrow canvases have vertical room to spare, so the pair can sit closer
-    const margin = camera.aspect < 2.2 ? 1.02 : 1.06;
+    const narrow = camera.aspect < 2.2;
+    const margin = narrow ? 0.94 : 1.0;
+    const edge = narrow ? 0.84 : 0.9;
     let dist = Math.max(byHeight, byWidth) * margin;
 
     const look = new THREE.Vector3(center.x, center.y * 0.74, center.z);
@@ -542,7 +494,7 @@ export function createStage(canvas) {
       let inside = true;
       for (const c of corners) {
         const p = c.clone().project(probe);
-        if (Math.abs(p.x) > 0.86 || Math.abs(p.y) > 0.86) { inside = false; break; }
+        if (Math.abs(p.x) > edge || Math.abs(p.y) > edge) { inside = false; break; }
       }
       if (inside) break;
       dist *= 1.04;
@@ -572,10 +524,7 @@ export function createStage(canvas) {
         if (templates.moto) return buildFromTemplate(templates.moto, tone, SOURCES.moto, SOURCES.moto.len);
         return buildBike(tone);
       }
-      // The caller names the body from the vehicle's type, so a hatchback row
-      // shows a hatchback and an MPV row shows a van. Same-type pairs share the
-      // body and split on tone instead of pretending to be different cars.
-      const key = templates[v.body] ? v.body : "sedan";
+      const key = templates[v.body] ? v.body : "car";
       if (templates[key]) return buildFromTemplate(templates[key], tone, SOURCES[key], SOURCES[key].len);
       return buildCar(tone);
     };
