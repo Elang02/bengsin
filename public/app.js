@@ -164,7 +164,7 @@ async function startStage(a, b) {
   }
 
   const seedOf = (v) => [...(v.model || "")].reduce((n, ch) => n + ch.charCodeAt(0), 0);
-  const kit = (v) => (isMotor(v) ? ["moto"] : ["car", "suv", "sport"]);
+  const kit = (v) => (isMotor(v) ? ["moto"] : ["sedan", "coupe", "sport"]);
   await stage.prepare(b ? [...kit(a), ...kit(b)] : kit(a));
   stage.setVehicles(
     { motor: isMotor(a), seed: seedOf(a) },

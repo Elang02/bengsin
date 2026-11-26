@@ -99,25 +99,31 @@ Numbers are always tabular. Money is `Rp 303.448`; litres `30,3`; km/L `14,5`.
   Every compatible row also prints what that fuel would cost this vehicle per month,
   under the price, so the table doubles as the "what if I switch" answer.
 - **Duel stage**: a `<canvas>` rendered by three.js, loaded lazily the first time a
-  vehicle is chosen. Two vehicles stand side by side on a soft contact shadow, lit by a
-  prefiltered studio environment (`PMREMGenerator` over `RoomEnvironment`) under
-  ACES tone mapping; drag turns the pair (yaw ±, pitch small), the pair drifts slowly on
-  its own after 2.6 s idle, and the camera leans a few centimetres toward the pointer.
-  The camera frames the pair already turned by its resting yaw, because a pair seen at an
-  angle needs more room than the same pair head-on, and it moves closer on narrow
-  canvases; the idle swing never pushes a nose past the edge.
-  Each asset names its own paint slot, so the stage repaints by name and leaves tyres,
-  rims and grilles as authored. Replacing every material with one flat surface is what
-  made the earlier set read as toys. Paint is `MeshPhysicalMaterial` with clearcoat,
-  glass is a separate low-roughness surface.
-  Body style follows the model name and the second slot is offset by one, so a pair of
-  cars never wears the same silhouette twice; a motorcycle keeps its own paint, because
-  its texture is baked into a single material, and sits at 2.05 m against 4.3 to 5 m for
-  cars, so the scale difference is real. Cars are oxblood (A) and stone (B); the bars in
-  the right column carry the same two colours, so identity is colour, not the verdict.
-  Authored wheels stay parked. They carry baked orientation and tumble if spun about a
-  guessed axis. If WebGL, the module or a GLB fails, `data-failed="true"` hides the
-  canvas and the comparison still reads.
+  vehicle is chosen. Two vehicles stand side by side on a shadow floor, lit by a studio
+  rig built in code (dark shell, one wide ceiling softbox, two strip lights) and
+  prefiltered with `PMREMGenerator`, under ACES tone mapping. The strip lights are what
+  give paint its long highlights; an even white room made every surface look plastic.
+  The floor is a `ShadowMaterial` plane, so the only thing drawn on the paper is the
+  shadow, from a real shadow map (1024 px, tight frustum around the pair).
+  Drag turns the pair (yaw ±, pitch small), it drifts on its own after 2.6 s idle, and
+  the camera leans a few centimetres toward the pointer. The camera starts from the
+  pair's box and then steps back until every corner of each vehicle's box, turned by the
+  resting yaw, lands inside the frame. The near car reaches wider than a flat
+  width-and-height estimate, which used to cut a nose off at the edge.
+  Each asset names its own paint slot, so the stage clones the authored material and
+  tints its colour: normal and roughness maps stay, and the body keeps its creases.
+  Replacing every material with one clean surface is what made the earlier set read as
+  toys. Tyres, rims and grilles are left as authored.
+  Three bodies (a 1960s coupe, a 1980s coupe, a modern sedan) are picked by the model
+  name, and B steps to the next body when both land on the same one, so a pair never
+  wears the same silhouette twice. A motorcycle takes the same paint, lifted, because its
+  body material is a very dark navy; it sits at 1.98 m against 4.3 to 5 m for cars, so the
+  scale difference is real. Cars are oxblood (A) and graphite (B); the bars in the right
+  column carry the same two colours, so identity is colour, not the verdict.
+  The tyres are seated on y=0 after a final box pass, and the idle bob is added on top of
+  that offset, never instead of it. Authored wheels stay parked: they carry baked
+  orientation and tumble if spun about a guessed axis. If WebGL, the module or a GLB
+  fails, `data-failed="true"` hides the canvas and the comparison still reads.
 - **Docket**: the signed-out garage explains itself as three hairline rows (Kendaraan /
   Riwayat / Ringkasan) beside the notice, never as a feature grid.
 - **Toast**: fixed bottom center, ink ground, 2 s, `role="status"`.

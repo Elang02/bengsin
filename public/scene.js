@@ -3,12 +3,13 @@
 // Loaded lazily from app.js the first time a comparison appears.
 import * as THREE from "./vendor/three.module.min.js";
 import { GLTFLoader } from "./vendor/loaders/GLTFLoader.js";
-import { RoomEnvironment } from "./vendor/environments/RoomEnvironment.js";
 
 const GLASS = 0x22241d;
 const TYRE = 0x0e0f0b;
 const HUB = 0x9a9c90;
-const TONES = [0x8b1538, 0xb5b8aa];
+// Two paints for the pair: the brand's oxblood and a graphite that still reads as
+// paint on paper. A near-black second car lost its shape entirely against the page.
+const TONES = [0x9b2044, 0x4a4f45];
 
 // Metres, not vibes: a 4.5 m car with 0.32 m wheels. Real ratios are what stop
 // a low-poly vehicle from reading as a toy.
@@ -129,18 +130,23 @@ function buildCar(tone) {
 }
 
 // ---------------------------------------------------------------------------
-// authored models (Quaternius, CC0), loaded once and cloned per slot
+// authored models (three cars, one bike), loaded once and cloned per slot
 // ---------------------------------------------------------------------------
 // Each asset names its own surfaces, so the stage repaints by name instead of
 // guessing: one paint slot, an optional glass slot, everything else untouched.
-// `len` is the real overall length in metres, which is what keeps a coupe from
-// being drawn at the size of a van.
+// `len` is the real overall length in metres, which is what keeps a hatchback
+// from being drawn at the width of a full-size sedan.
+// Three bodies, all authored with smooth normals. The faceted low-poly cars
+// that poly.pizza offers in bulk were dropped: no light fixes a model whose
+// panels are flat triangles.
 const SOURCES = {
-  car: { url: "/models/car-sedan.glb", paint: ["red_chasis"], glass: ["glass"], len: 5.0 },
-  sport: { url: "/models/car-sport.glb", paint: ["body_paint"], glass: ["glass"], len: 4.3 },
-  suv: { url: "/models/car-suv.glb", paint: ["bodywork"], glass: ["glass"], len: 4.8 },
-  // The bike ships as one textured mesh: its paint is baked, so it keeps it.
-  moto: { url: "/models/moto.glb", paint: [], glass: [], len: 2.05 },
+  sedan: { url: "/models/car-sedan.glb", paint: ["red_chasis"], glass: ["glass"], len: 5.0 },
+  coupe: { url: "/models/car-sport.glb", paint: ["body_paint"], glass: ["glass"], len: 4.3 },
+  sport: { url: "/models/car-gtr.glb", paint: ["chasis_none"], glass: ["glass"], len: 4.65 },
+  // A naked bike: its panels are separate colour materials, so it takes the same
+  // tone as the car beside it. `lift` brightens that tone, because the authored
+  // body material is a very dark navy and reads as black under studio light.
+  moto: { url: "/models/moto.glb", paint: ["455a64", "039be5"], glass: [], len: 1.98, lift: 2.2 },
 };
 const gltfLoader = new GLTFLoader();
 const sourceCache = new Map();
@@ -190,9 +196,28 @@ function dressModel(root, profile, tone) {
     if (!o.isMesh) return;
     const swap = (m) => {
       const key = (m.name || "").toLowerCase();
-      if (paint.includes(key)) return surface("paint", TONES[tone]);
-      if (glass.includes(key)) return surface("glass", 0x1b1d18);
       const keep = m.clone();
+      // Keep the authored material for paint: its normal and roughness maps are
+      // what make the body read as sheet metal. Replacing it with a clean
+      // physical shader turned every crease into a flat facet.
+      if (paint.includes(key)) {
+        if (keep.color) {
+          keep.color.setHex(TONES[tone]);
+          if (profile.lift) keep.color.multiplyScalar(profile.lift);
+        }
+        if ("metalness" in keep) keep.metalness = 0.22;
+        if ("roughness" in keep) keep.roughness = 0.34;
+        if ("clearcoat" in keep) keep.clearcoat = 0.8;
+        keep.envMapIntensity = 1.15;
+        return keep;
+      }
+      if (glass.includes(key)) {
+        if (keep.color) keep.color.setHex(0x14160f);
+        if ("metalness" in keep) keep.metalness = 0.5;
+        if ("roughness" in keep) keep.roughness = 0.08;
+        keep.envMapIntensity = 1.4;
+        return keep;
+      }
       keep.envMapIntensity = 0.9;
       return keep;
     };
@@ -223,6 +248,12 @@ function buildFromTemplate(template, tone, profile, targetLen) {
   g.position.x -= mid.x;
   g.position.z -= mid.z;
   g.position.y -= grounded.min.y;
+
+  g.traverse((o) => {
+    if (!o.isMesh) return;
+    o.castShadow = true;
+    o.receiveShadow = true;
+  });
 
   // Authored wheel nodes carry their own baked orientation; spinning them about
   // a guessed local axis tumbles them through the floor. They stay parked.
@@ -290,66 +321,79 @@ export function createStage(canvas) {
     powerPreference: "low-power",
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 0.95;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   const scene = new THREE.Scene();
-  // A neutral studio, prefiltered once, so paint has something to reflect.
+  // Light the paint with a lit room rather than a flat white sky: a dark shell
+  // with a wide ceiling softbox and two strip lights gives the long highlights
+  // that make sheet metal read as sheet metal. Built here instead of shipping an
+  // HDRI, so the page keeps its single-file dependency on three.
+  const studio = () => {
+    const room = new THREE.Scene();
+    const shell = new THREE.Mesh(
+      new THREE.BoxGeometry(30, 16, 30),
+      new THREE.MeshBasicMaterial({ color: 0x232520, side: THREE.BackSide }),
+    );
+    shell.position.y = 4;
+    room.add(shell);
+    const panel = (w, h, x, y, z, rx, ry, power) => {
+      const m = new THREE.Mesh(
+        new THREE.PlaneGeometry(w, h),
+        new THREE.MeshBasicMaterial({ color: new THREE.Color(power, power, power) }),
+      );
+      m.position.set(x, y, z);
+      m.rotation.set(rx, ry, 0);
+      room.add(m);
+    };
+    panel(14, 10, 0, 11.9, 0, Math.PI / 2, 0, 5.2);   // ceiling softbox
+    panel(3, 12, -12.5, 5, 1, 0, Math.PI / 2, 3.4);   // left strip
+    panel(1.6, 12, 12.5, 5, -2, 0, -Math.PI / 2, 2.2); // right strip
+    panel(12, 3, 0, 3, -13, 0, 0, 0.9);               // low back bounce
+    return room;
+  };
   const pmrem = new THREE.PMREMGenerator(renderer);
-  const room = new RoomEnvironment();
-  scene.environment = pmrem.fromScene(room, 0.03).texture;
-  room.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
+  const room = studio();
+  scene.environment = pmrem.fromScene(room, 0.02).texture;
+  room.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
   pmrem.dispose();
 
   const camera = new THREE.PerspectiveCamera(26, 1, 0.1, 120);
   camera.position.set(0, 2.4, 12);
   camera.lookAt(0, 0.9, 0);
 
-  scene.add(new THREE.HemisphereLight(0xf2f2e6, 0x2a2c24, 1.0));
-  const key = new THREE.DirectionalLight(0xfff6e2, 2.2);
+  scene.add(new THREE.HemisphereLight(0xf2f2e6, 0x2a2c24, 0.55));
+  const key = new THREE.DirectionalLight(0xfff6e2, 3.1);
   key.position.set(7, 11, 8);
+  key.castShadow = true;
+  key.shadow.mapSize.set(1024, 1024);
+  key.shadow.bias = -0.0004;
+  key.shadow.normalBias = 0.02;
+  key.shadow.radius = 3;
+  key.shadow.camera.near = 0.5;
+  key.shadow.camera.far = 40;
   scene.add(key);
-  const rim = new THREE.DirectionalLight(0x8b1538, 0.9);
+  scene.add(key.target);
+
+  // The only thing drawn on the floor is its shadow: a ShadowMaterial plane
+  // lets the page's own ground show through, so the pair sits on the paper
+  // instead of on a grey rectangle.
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(60, 60),
+    new THREE.ShadowMaterial({ color: 0x1a1b17, opacity: 0.34 }),
+  );
+  floor.rotation.x = -Math.PI / 2;
+  floor.receiveShadow = true;
+  scene.add(floor);
+  const rim = new THREE.DirectionalLight(0xb4413f, 0.55);
   rim.position.set(-8, 3.5, -6);
   scene.add(rim);
-  const fill = new THREE.DirectionalLight(0xdfe6e8, 0.45);
+  const fill = new THREE.DirectionalLight(0xdfe6e8, 0.3);
   fill.position.set(2, 2, 12);
   scene.add(fill);
-
-  // contact shadow texture, reused by every vehicle
-  // Two shadow passes: a tight core that anchors the tyres and a wide ambient
-  // spread. One soft blob reads as a smudge once the tone mapper lifts the floor.
-  const shadowTexture = (core) => {
-    const c = document.createElement("canvas");
-    c.width = c.height = 128;
-    const ctx = c.getContext("2d");
-    const grad = ctx.createRadialGradient(64, 64, 2, 64, 64, 62);
-    if (core) {
-      grad.addColorStop(0, "rgba(0,0,0,0.62)");
-      grad.addColorStop(0.45, "rgba(0,0,0,0.3)");
-      grad.addColorStop(1, "rgba(0,0,0,0)");
-    } else {
-      grad.addColorStop(0, "rgba(0,0,0,0.14)");
-      grad.addColorStop(0.5, "rgba(0,0,0,0.07)");
-      grad.addColorStop(1, "rgba(0,0,0,0)");
-    }
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 128, 128);
-    return new THREE.CanvasTexture(c);
-  };
-  const coreTex = shadowTexture(true);
-
-  function castShadow(width, depth, tex, y) {
-    const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(width, depth),
-      new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }),
-    );
-    mesh.rotation.x = -Math.PI / 2;
-    mesh.position.y = y;
-    mesh.renderOrder = 1;
-    return mesh;
-  }
 
   const root = new THREE.Group();
   scene.add(root);
@@ -392,6 +436,9 @@ export function createStage(canvas) {
   const camAt = new THREE.Vector3(0, 2.4, 12);
   let fitted = false;
 
+  const probe = new THREE.PerspectiveCamera(26, 1, 0.1, 200);
+  const UP = new THREE.Vector3(0, 1, 0);
+
   function frame() {
     if (!slotA || !fit) return;
     measure();
@@ -401,10 +448,35 @@ export function createStage(canvas) {
     const byHeight = size.y / 2 / Math.tan(fov / 2);
     const byWidth = size.x / 2 / (Math.tan(fov / 2) * Math.max(camera.aspect, 0.6));
     // narrow canvases have vertical room to spare, so the pair can sit closer
-    const margin = camera.aspect < 2.2 ? 0.9 : 1.02;
-    const dist = Math.max(byHeight, byWidth) * margin + size.z / 2;
-    camBase.set(center.x * 0.3, center.y + size.y * 0.44 + 0.18, center.z + dist);
-    camLook.set(center.x * 0.3, center.y * 0.74, center.z);
+    const margin = camera.aspect < 2.2 ? 0.94 : 1.0;
+    let dist = Math.max(byHeight, byWidth) * margin;
+
+    const look = new THREE.Vector3(center.x, center.y * 0.74, center.z);
+    const eye = new THREE.Vector3();
+    // Rotate the measured corners into the resting pose before projecting:
+    // a turned pair reaches wider than the box it was measured in.
+    const corners = (fit.corners || []).map((c) => c.clone().applyAxisAngle(UP, REST_YAW));
+    // Step back until every corner lands inside the frame: perspective makes the
+    // near car wider than the flat estimate, which used to cut a wheel off.
+    probe.fov = camera.fov;
+    probe.aspect = camera.aspect;
+    for (let i = 0; i < 20; i++) {
+      eye.set(center.x, center.y + size.y * 0.44 + 0.18, center.z + dist);
+      probe.position.copy(eye);
+      probe.lookAt(look);
+      probe.updateMatrixWorld(true);
+      probe.updateProjectionMatrix();
+      let inside = true;
+      for (const c of corners) {
+        const p = c.clone().project(probe);
+        if (Math.abs(p.x) > 0.97 || Math.abs(p.y) > 0.97) { inside = false; break; }
+      }
+      if (inside) break;
+      dist *= 1.04;
+    }
+
+    camBase.copy(eye);
+    camLook.copy(look);
     if (!fitted) {
       camAt.copy(camBase);
       camera.position.copy(camBase);
@@ -422,33 +494,43 @@ export function createStage(canvas) {
     }
     slotA = slotB = null;
 
-    const make = (v, tone) => {
+    const styles = ["sedan", "coupe", "sport"].filter((k) => templates[k]);
+    const indexOf = (v) => (styles.length ? Math.abs(v.seed || 0) % styles.length : -1);
+    // Two cars side by side never wear the same body: the pair's seeds can land
+    // on one style, so B steps to the next body when it collides with A.
+    const indexA = a && !a.motor ? indexOf(a) : -1;
+    const indexB = b && !b.motor ? indexOf(b) : -1;
+    const styleB = indexB >= 0 && indexB === indexA ? (indexB + 1) % styles.length : indexB;
+
+    const make = (v, tone, index) => {
       if (v.motor) {
         if (templates.moto) return buildFromTemplate(templates.moto, tone, SOURCES.moto, SOURCES.moto.len);
         return buildBike(tone);
       }
-      // body style follows the model name, so two cars never look identical
-      const styles = ["car", "suv", "sport"].filter((k) => templates[k]);
-      // the second slot is offset by one, so a pair of cars never wears the
-      // same body twice
-      const shift = tone === 1 ? 1 : 0;
-      const key = styles[((v.seed || 0) + shift) % Math.max(styles.length, 1)] || "car";
+      // body style follows the model name, so the stage shows a mix of shapes
+      const key = styles[index] || "sedan";
       if (templates[key]) return buildFromTemplate(templates[key], tone, SOURCES[key], SOURCES[key].len);
       return buildCar(tone);
     };
 
     if (a) {
-      slotA = make(a, 0);
+      slotA = make(a, 0, Math.max(indexA, 0));
       root.add(slotA);
     }
     if (b) {
-      slotB = make(b, 1);
+      slotB = make(b, 1, Math.max(styleB, 0));
       root.add(slotB);
     }
     // Sit them side by side with a measured gap. Each slot is reset first so a
     // previous vehicle's width cannot leave the pair overlapping.
     const gap = 0.7;
-    for (const slot of [slotA, slotB]) if (slot) slot.position.set(0, 0, 0);
+    // Only the horizontal placement is reset here: the built vehicle already
+    // carries the offset that put its tyres on y=0, and clearing it dropped the
+    // car through the floor.
+    for (const slot of [slotA, slotB]) if (slot) {
+      slot.position.x = 0;
+      slot.position.z = 0;
+    }
     root.updateMatrixWorld(true);
     const boxA = slotA ? new THREE.Box3().setFromObject(slotA) : null;
     const boxB = slotB ? new THREE.Box3().setFromObject(slotB) : null;
@@ -468,21 +550,48 @@ export function createStage(canvas) {
     for (const slot of [slotA, slotB]) if (slot) box.expandByObject(slot);
     const size = box.getSize(new THREE.Vector3());
     size.x *= 1.04; // covers the idle swing without zooming out for a whole car
-    fit = box.isEmpty() ? null : { size, center: box.getCenter(new THREE.Vector3()) };
+    // Corners taken in each car's own frame (measured before the yaw), so the
+    // camera can be checked against the silhouette instead of an axis-aligned
+    // box whose empty corners sit in mid-air.
+    const corners = [];
+    for (const slot of [slotA, slotB]) {
+      // Measured after the pair is placed: boxes taken before the side-by-side
+      // shift put every corner one slot too far left and the camera framed ghosts.
+      const bb = slot ? new THREE.Box3().setFromObject(slot) : null;
+      if (!bb || bb.isEmpty()) continue;
+      for (const sx of [bb.min.x, bb.max.x]) {
+        for (const sy of [bb.min.y, bb.max.y]) {
+          for (const sz of [bb.min.z, bb.max.z]) corners.push(new THREE.Vector3(sx, sy, sz));
+        }
+      }
+    }
+    fit = box.isEmpty() ? null : { size, center: box.getCenter(new THREE.Vector3()), corners };
 
+    // The shadow map has to cover the pair, not the whole scene, or the tyres
+    // lose their shadow to resolution. Aim the key light at the pair's centre.
+    if (fit) {
+      const reach = Math.max(size.x, size.z, size.y) * 1.05 + 2.4;
+      key.target.position.copy(fit.center);
+      key.position.set(fit.center.x + 6, fit.center.y + 9, fit.center.z + 7);
+      key.shadow.camera.left = -reach;
+      key.shadow.camera.right = reach;
+      key.shadow.camera.top = reach;
+      key.shadow.camera.bottom = -reach;
+      key.shadow.camera.updateProjectionMatrix();
+      key.target.updateMatrixWorld();
+    }
+
+    // One last ground check on the finished pair, whatever the assets claim
+    // about their own origins.
     root.rotation.set(0, 0, 0);
     root.updateMatrixWorld(true);
-    for (const slot of [slotA, slotB]) {
-      if (!slot) continue;
-      const bb = new THREE.Box3().setFromObject(slot);
-      const b = bb.getSize(new THREE.Vector3());
-      const c = bb.getCenter(new THREE.Vector3());
-      const shadow = castShadow(b.x * 1.14, b.z * 1.3, coreTex, 0.012);
-      shadow.position.set(c.x - slot.position.x, 0.012, c.z - slot.position.z);
-      shadow.renderOrder = 1;
-      slot.add(shadow);
-
+    const grounded = new THREE.Box3();
+    for (const slot of [slotA, slotB]) if (slot) grounded.expandByObject(slot);
+    if (!grounded.isEmpty() && Math.abs(grounded.min.y) > 0.002) {
+      for (const slot of [slotA, slotB]) if (slot) slot.position.y -= grounded.min.y;
+      root.updateMatrixWorld(true);
     }
+    for (const slot of [slotA, slotB]) if (slot) slot.userData.baseY = slot.position.y;
     frame();
     enterAt = performance.now();
   }
@@ -581,7 +690,10 @@ export function createStage(canvas) {
         if (!slot) continue;
         const spin = (slot === slotA ? speed : speed * 0.92) * dt;
         for (const w of slot.userData.wheels) w.rotation.z -= spin;
-        slot.position.y = Math.sin(now / 260 + (slot === slotB ? 1.7 : 0)) * 0.004;
+        // The idle bob rides on top of the offset that seats the tyres, never
+        // instead of it: overwriting y here dropped the car below the floor.
+        const base = slot.userData.baseY || 0;
+        slot.position.y = base + Math.sin(now / 260 + (slot === slotB ? 1.7 : 0)) * 0.004;
       }
     }
 
