@@ -149,7 +149,7 @@ const SOURCES = {
   // do on a single-atlas model. `hide` drops the roof rack and the spare: both
   // read as expedition kit, not as a family car.
   small: { url: "/models/car-sport.glb", paint: ["body_paint"], glass: ["glass"], len: 4.3 },
-  tall: { url: "/models/car-suv.glb", paint: [], glass: ["glass"], len: 4.55, wash: [0xfff0e0, 0x93a0aa], hide: ["spare tire", "bag"] },
+  tall: { url: "/models/car-suv.glb", paint: [], glass: ["glass"], rubber: ["tire1", "tire2", "tire3", "tire4"], len: 4.55, wash: [0xc4536e, 0x9aa4ad], hide: ["spare tire", "bag"] },
   // A naked bike: its panels are separate colour materials, so it takes the same
   // tone as the car beside it. `lift` brightens that tone, because the authored
   // body material is a very dark navy and reads as black under studio light.
@@ -196,12 +196,54 @@ function surface(kind, color) {
 // palette colour; named glass becomes glass; every other material is kept as
 // authored, because those are the parts (tyres, grilles, rims) that carry the
 // shape. Replacing them wholesale is what made the old set read as toys.
+// A single-atlas model carries its colour in a 256 px palette, so multiplying a
+// tone into a bronze atlas only makes a darker bronze. Grey the palette once,
+// then let the tone own the hue: A reads oxblood and B reads graphite whichever
+// body they sit on.
+function greyscale(source) {
+  if (!source || !source.image) return source;
+  if (source.userData.flat) return source.userData.flat;
+  const img = source.image;
+  const canvas = document.createElement("canvas");
+  canvas.width = img.width;
+  canvas.height = img.height;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0);
+  const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const px = data.data;
+  for (let i = 0; i < px.length; i += 4) {
+    const l = px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114;
+    // lift the midtones so a tone multiply keeps the panel creases readable
+    const v = Math.min(255, 96 + l * 0.62);
+    px[i] = px[i + 1] = px[i + 2] = v;
+  }
+  ctx.putImageData(data, 0, 0);
+  const flat = new THREE.CanvasTexture(canvas);
+  flat.flipY = source.flipY;
+  flat.colorSpace = source.colorSpace;
+  flat.wrapS = source.wrapS;
+  flat.wrapT = source.wrapT;
+  flat.needsUpdate = true;
+  source.userData.flat = flat;
+  return flat;
+}
+
 function dressModel(root, profile, tone) {
   const paint = (profile.paint || []).map((s) => s.toLowerCase());
   const glass = (profile.glass || []).map((s) => s.toLowerCase());
+  const rubber = (profile.rubber || []).map((s) => s.toLowerCase().replace(/[^a-z0-9]/g, ""));
   const wash = profile.wash ? new THREE.Color(profile.wash[tone]) : null;
+  const rubberMat = rubber.length
+    ? new THREE.MeshStandardMaterial({ color: 0x14140f, roughness: 0.85, metalness: 0.05 })
+    : null;
   root.traverse((o) => {
     if (!o.isMesh) return;
+    // Tyres are separate meshes sharing the body's atlas material, so the only
+    // way to keep them black is to swap by mesh name before the material pass.
+    if (rubberMat && rubber.includes((o.name || "").toLowerCase().replace(/[^a-z0-9]/g, ""))) {
+      o.material = rubberMat;
+      return;
+    }
     const swap = (m) => {
       const key = (m.name || "").toLowerCase();
       const keep = m.clone();
@@ -228,7 +270,10 @@ function dressModel(root, profile, tone) {
         keep.envMapIntensity = 0.55;
         return keep;
       }
-      if (wash && keep.color) keep.color.multiply(wash);
+      if (wash) {
+        if (keep.map) keep.map = greyscale(keep.map);
+        if (keep.color) keep.color.copy(wash);
+      }
       keep.envMapIntensity = 0.9;
       return keep;
     };
@@ -393,8 +438,8 @@ export function createStage(canvas) {
   key.position.set(7, 11, 8);
   key.castShadow = true;
   key.shadow.mapSize.set(1024, 1024);
-  key.shadow.bias = -0.0004;
-  key.shadow.normalBias = 0.02;
+  key.shadow.bias = -0.0006;
+  key.shadow.normalBias = 0.06;
   key.shadow.radius = 3;
   key.shadow.camera.near = 0.5;
   key.shadow.camera.far = 40;
@@ -471,14 +516,19 @@ export function createStage(canvas) {
     const byHeight = size.y / 2 / Math.tan(fov / 2);
     const byWidth = size.x / 2 / (Math.tan(fov / 2) * Math.max(camera.aspect, 0.6));
     // narrow canvases have vertical room to spare, so the pair can sit closer
-    const margin = camera.aspect < 2.2 ? 0.94 : 1.0;
+    const margin = camera.aspect < 2.2 ? 1.02 : 1.06;
     let dist = Math.max(byHeight, byWidth) * margin;
 
     const look = new THREE.Vector3(center.x, center.y * 0.74, center.z);
     const eye = new THREE.Vector3();
     // Rotate the measured corners into the resting pose before projecting:
     // a turned pair reaches wider than the box it was measured in.
-    const corners = (fit.corners || []).map((c) => c.clone().applyAxisAngle(UP, REST_YAW));
+    // Two poses: the resting yaw and the far end of the idle swing, which is
+    // what actually clipped the nose at the edge of the stage.
+    const corners = [];
+    for (const turn of [REST_YAW - 0.13, REST_YAW, REST_YAW + 0.13]) {
+      for (const c of fit.corners || []) corners.push(c.clone().applyAxisAngle(UP, turn));
+    }
     // Step back until every corner lands inside the frame: perspective makes the
     // near car wider than the flat estimate, which used to cut a wheel off.
     probe.fov = camera.fov;
@@ -492,7 +542,7 @@ export function createStage(canvas) {
       let inside = true;
       for (const c of corners) {
         const p = c.clone().project(probe);
-        if (Math.abs(p.x) > 0.97 || Math.abs(p.y) > 0.97) { inside = false; break; }
+        if (Math.abs(p.x) > 0.86 || Math.abs(p.y) > 0.86) { inside = false; break; }
       }
       if (inside) break;
       dist *= 1.04;
