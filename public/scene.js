@@ -9,7 +9,7 @@ const TYRE = 0x0e0f0b;
 const HUB = 0x9a9c90;
 // Two paints for the pair: the brand's oxblood and a graphite that still reads as
 // paint on paper. A near-black second car lost its shape entirely against the page.
-const TONES = [0x9b2044, 0x4a4f45];
+const TONES = [0x9b2044, 0x3f4348];
 
 // Metres, not vibes: a 4.5 m car with 0.32 m wheels. Real ratios are what stop
 // a low-poly vehicle from reading as a toy.
@@ -149,7 +149,7 @@ const SOURCES = {
   // do on a single-atlas model. `hide` drops the roof rack and the spare: both
   // read as expedition kit, not as a family car.
   small: { url: "/models/car-sport.glb", paint: ["body_paint"], glass: ["glass"], len: 4.3 },
-  tall: { url: "/models/car-suv.glb", paint: [], glass: ["glass"], rubber: ["tire1", "tire2", "tire3", "tire4"], len: 4.55, wash: [0xc4536e, 0x9aa4ad], hide: ["spare tire", "bag"] },
+  tall: { url: "/models/car-suv.glb", paint: [], glass: ["glass"], rubber: ["tire1", "tire2", "tire3", "tire4"], len: 4.55, wash: [0xc4536e, 0x97a1ab], hide: ["spare tire", "bag"] },
   // A naked bike: its panels are separate colour materials, so it takes the same
   // tone as the car beside it. `lift` brightens that tone, because the authored
   // body material is a very dark navy and reads as black under studio light.
@@ -214,7 +214,7 @@ function greyscale(source) {
   for (let i = 0; i < px.length; i += 4) {
     const l = px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114;
     // lift the midtones so a tone multiply keeps the panel creases readable
-    const v = Math.min(255, 96 + l * 0.62);
+    const v = Math.min(255, 34 + l * 0.74);
     px[i] = px[i + 1] = px[i + 2] = v;
   }
   ctx.putImageData(data, 0, 0);
