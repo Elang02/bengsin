@@ -611,6 +611,16 @@ export function createStage(canvas) {
     }
     for (const slot of [slotA, slotB]) if (slot) slot.userData.baseY = slot.position.y;
     frame();
+    // The band is revealed in the same tick the pair arrives, so the first fit
+    // can run against a canvas that is still 0×0 or a layout that has not
+    // settled. Re-fit once the box has a size, and once more after the entrance
+    // animation, or the camera keeps a distance meant for a different canvas.
+    for (const wait of [0, 250, 900]) {
+      timers.push(setTimeout(() => {
+        if (!canvas.isConnected) return;
+        if (measure()) frame();
+      }, wait));
+    }
     enterAt = performance.now();
   }
 
@@ -651,6 +661,7 @@ export function createStage(canvas) {
   let gazeTX = 0;
   let gazeTY = 0;
   let enterAt = 0;
+  const timers = [];
 
   function onHover(e) {
     const rect = canvas.getBoundingClientRect();
@@ -766,6 +777,7 @@ export function createStage(canvas) {
     },
     dispose() {
       this.stop();
+      for (const t of timers) clearTimeout(t);
       ro.disconnect();
       canvas.removeEventListener("pointerdown", onDown);
       canvas.removeEventListener("pointermove", onMove);
