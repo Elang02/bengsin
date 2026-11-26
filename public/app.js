@@ -141,6 +141,38 @@ function signOut() {
 
 const isMotor = (v) => /^mot/i.test(v.vehicle_type || "");
 
+// The three-dimensional band shows a body per vehicle type, not per model name:
+// fifty-six presets share four shapes, and giving each name its own model read as
+// a zoo. The longest matching word wins, so "city hatchback" beats "city" and
+// "yaris cross" beats "yaris".
+const BODY_WORDS = {
+  small: ["ayla", "brio", "city hatchback", "mirage", "march", "baleno", "ignis", "swift", "mazda2", "yaris"],
+  tall: [
+    "gran max", "sigra", "xenia", "mobilio", "livina", "serena", "ertiga", "innova", "avanza",
+    "veloz", "xpander", "confero", "cortez", "alphard", "carry",
+    "rocky", "terios", "br-v", "cr-v", "hr-v", "mu-x", "cx-3", "cx-5", "pajero", "kicks", "xl7",
+    "fortuner", "raize", "rush", "yaris cross", "xpander cross", "almaz", "atto",
+    "d-max", "triton", "navara",
+  ],
+  sedan: ["accord", "city", "civic", "camry", "corolla", "altis", "vios", "mazda3"],
+};
+
+function bodyOf(v) {
+  if (isMotor(v)) return "moto";
+  const name = `${v.brand || ""} ${v.model || ""} ${v.trim_variant || ""}`.toLowerCase();
+  let best = "";
+  let width = 0;
+  for (const [body, words] of Object.entries(BODY_WORDS)) {
+    for (const word of words) {
+      if (word.length > width && name.includes(word)) {
+        best = body;
+        width = word.length;
+      }
+    }
+  }
+  return best || "sedan";
+}
+
 // ---------------------------------------------------------------------------
 // 3D stage (loaded only when a comparison appears)
 // ---------------------------------------------------------------------------
@@ -164,11 +196,11 @@ async function startStage(a, b) {
   }
 
   const seedOf = (v) => [...(v.model || "")].reduce((n, ch) => n + ch.charCodeAt(0), 0);
-  const kit = (v) => (isMotor(v) ? ["moto"] : ["sedan", "coupe", "sport"]);
+  const kit = (v) => [bodyOf(v)];
   await stage.prepare(b ? [...kit(a), ...kit(b)] : kit(a));
   stage.setVehicles(
-    { motor: isMotor(a), seed: seedOf(a) },
-    b ? { motor: isMotor(b), seed: seedOf(b) } : null,
+    { motor: isMotor(a), seed: seedOf(a), body: bodyOf(a) },
+    b ? { motor: isMotor(b), seed: seedOf(b), body: bodyOf(b) } : null,
   );
   stage.setSpeed(S.distance);
   stage.start();

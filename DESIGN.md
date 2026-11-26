@@ -114,11 +114,15 @@ Numbers are always tabular. Money is `Rp 303.448`; litres `30,3`; km/L `14,5`.
   tints its colour: normal and roughness maps stay, and the body keeps its creases.
   Replacing every material with one clean surface is what made the earlier set read as
   toys. Tyres, rims and grilles are left as authored.
-  Three bodies (a 1960s coupe, a 1980s coupe, a modern sedan) are picked by the model
-  name, and B steps to the next body when both land on the same one, so a pair never
-  wears the same silhouette twice. A motorcycle takes the same paint, lifted, because its
-  body material is a very dark navy; it sits at 1.98 m against 4.3 to 5 m for cars, so the
-  scale difference is real. Cars are oxblood (A) and graphite (B); the bars in the right
+  The body is chosen from the vehicle's type, not its name: a sedan row gets the sedan,
+  a hatchback row gets the small car, and every tall two-box body (SUV, MPV, pickup) gets
+  the tall one. Fifty-six car names share three silhouettes on purpose; a catalogue of
+  fifty-six models is the thing this stage is not. A same-type pair splits on tone instead
+  of pretending to be two different cars. The tall body is a single-atlas model, so it is
+  washed with a near-white tone rather than repainted, and its roof rack and spare are
+  removed by node name: both read as expedition kit, not as a family car. A motorcycle
+  takes the same paint, lifted, because its body material is a very dark navy; it sits at
+  1.98 m against 4.3 to 5 m for cars, so the scale difference is real. Cars are oxblood (A) and graphite (B); the bars in the right
   column carry the same two colours, so identity is colour, not the verdict.
   The tyres are seated on y=0 after a final box pass, and the idle bob is added on top of
   that offset, never instead of it. Authored wheels stay parked: they carry baked

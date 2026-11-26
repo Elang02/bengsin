@@ -129,10 +129,12 @@ run.py                launcher lokal
   dibangun di `scene.js`, jadi tidak ada berkas environment yang perlu diunduh. Model 3D
   dimuat lewat import map, tanpa langkah build.
 - **Model kendaraan**: diunduh lewat [poly.pizza](https://poly.pizza), disimpan di
-  `public/models/`, semuanya CC BY 3.0: "Dodge Charger" oleh David Sirera, "Nissan GTR"
-  oleh David Sirera, "Mazda RX-7" oleh IvOfficial, dan "Motorcycle" oleh jeremy. Bodi
-  kendaraan dicat ulang mengikuti palet situs (oxblood untuk kendaraan A, grafit untuk
-  B), sisanya dibiarkan seperti aslinya. Kredit juga tampil di kaki halaman.
+  `public/models/`, semuanya CC BY 3.0: "Dodge Charger" oleh David Sirera, "Mazda RX-7"
+  oleh IvOfficial, "Range Rover" oleh IvOfficial, dan "Motorcycle" oleh jeremy. Bodinya
+  dipilih menurut tipe kendaraan, bukan nama modelnya: sedan, mobil kecil, mobil tinggi.
+  Bodi yang punya slot cat sendiri dicat ulang mengikuti palet situs (oxblood untuk
+  kendaraan A, grafit untuk B). Yang teksturnya menyatu diberi lapis tipis supaya tetap
+  beda tanpa mengecat bannya. Kredit juga tampil di kaki halaman.
 - **Saira** (Omnibus-Type), SIL Open Font License. Ada di `public/fonts/`.
 
 ## Lisensi

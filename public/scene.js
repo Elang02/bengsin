@@ -130,19 +130,26 @@ function buildCar(tone) {
 }
 
 // ---------------------------------------------------------------------------
-// authored models (three cars, one bike), loaded once and cloned per slot
+// authored models (three car bodies, one bike), cloned per slot
 // ---------------------------------------------------------------------------
 // Each asset names its own surfaces, so the stage repaints by name instead of
 // guessing: one paint slot, an optional glass slot, everything else untouched.
 // `len` is the real overall length in metres, which is what keeps a hatchback
 // from being drawn at the width of a full-size sedan.
-// Three bodies, all authored with smooth normals. The faceted low-poly cars
-// that poly.pizza offers in bulk were dropped: no light fixes a model whose
-// panels are flat triangles.
+// All of them are authored with smooth normals. The faceted low-poly cars that
+// poly.pizza offers in bulk were dropped: no light fixes a model whose panels
+// are flat triangles, and a cartoon van sitting beside a real body reads as two
+// different products in one picture.
 const SOURCES = {
   sedan: { url: "/models/car-sedan.glb", paint: ["red_chasis"], glass: ["glass"], len: 5.0 },
-  coupe: { url: "/models/car-sport.glb", paint: ["body_paint"], glass: ["glass"], len: 4.3 },
-  sport: { url: "/models/car-gtr.glb", paint: ["chasis_none"], glass: ["glass"], len: 4.65 },
+  // Bodies are picked by vehicle type, not by model name: `small` covers the
+  // hatchback and city-car rows, `tall` every two-box body (SUV, MPV, pickup).
+  // `wash` multiplies the authored albedo with a near-white tone: it shifts the
+  // colour without turning tyres and glass into paint, which a full repaint would
+  // do on a single-atlas model. `hide` drops the roof rack and the spare: both
+  // read as expedition kit, not as a family car.
+  small: { url: "/models/car-sport.glb", paint: ["body_paint"], glass: ["glass"], len: 4.3 },
+  tall: { url: "/models/car-suv.glb", paint: [], glass: ["glass"], len: 4.55, wash: [0xfff0e0, 0x93a0aa], hide: ["spare tire", "bag"] },
   // A naked bike: its panels are separate colour materials, so it takes the same
   // tone as the car beside it. `lift` brightens that tone, because the authored
   // body material is a very dark navy and reads as black under studio light.
@@ -192,6 +199,7 @@ function surface(kind, color) {
 function dressModel(root, profile, tone) {
   const paint = (profile.paint || []).map((s) => s.toLowerCase());
   const glass = (profile.glass || []).map((s) => s.toLowerCase());
+  const wash = profile.wash ? new THREE.Color(profile.wash[tone]) : null;
   root.traverse((o) => {
     if (!o.isMesh) return;
     const swap = (m) => {
@@ -212,12 +220,15 @@ function dressModel(root, profile, tone) {
         return keep;
       }
       if (glass.includes(key)) {
-        if (keep.color) keep.color.setHex(0x14160f);
-        if ("metalness" in keep) keep.metalness = 0.5;
-        if ("roughness" in keep) keep.roughness = 0.08;
-        keep.envMapIntensity = 1.4;
+        // A mirror finish on glass reflects the softbox and the windows turn
+        // into pale panels. Tinted and slightly rough reads as glass.
+        if (keep.color) keep.color.setHex(0x101208);
+        if ("metalness" in keep) keep.metalness = 0.1;
+        if ("roughness" in keep) keep.roughness = 0.16;
+        keep.envMapIntensity = 0.55;
         return keep;
       }
+      if (wash && keep.color) keep.color.multiply(wash);
       keep.envMapIntensity = 0.9;
       return keep;
     };
@@ -228,6 +239,18 @@ function dressModel(root, profile, tone) {
 function buildFromTemplate(template, tone, profile, targetLen) {
   const g = template.clone(true);
   dressModel(g, profile, tone);
+  if (profile.hide) {
+    // GLTFLoader sanitises node names ("Spare Tire" arrives as "Spare_Tire"), so
+    // compare on letters alone.
+    const key = (n) => (n || "").toLowerCase().replace(/[^a-z]/g, "");
+    const drop = profile.hide.map(key);
+    const doomed = [];
+    g.traverse((o) => {
+      if (drop.includes(key(o.name))) doomed.push(o);
+    });
+    for (const o of doomed) o.removeFromParent();
+    g.updateMatrixWorld(true);
+  }
 
   // longest horizontal axis becomes the length, then normalise and sit on y=0
   g.updateMatrixWorld(true);
@@ -494,31 +517,25 @@ export function createStage(canvas) {
     }
     slotA = slotB = null;
 
-    const styles = ["sedan", "coupe", "sport"].filter((k) => templates[k]);
-    const indexOf = (v) => (styles.length ? Math.abs(v.seed || 0) % styles.length : -1);
-    // Two cars side by side never wear the same body: the pair's seeds can land
-    // on one style, so B steps to the next body when it collides with A.
-    const indexA = a && !a.motor ? indexOf(a) : -1;
-    const indexB = b && !b.motor ? indexOf(b) : -1;
-    const styleB = indexB >= 0 && indexB === indexA ? (indexB + 1) % styles.length : indexB;
-
-    const make = (v, tone, index) => {
+    const make = (v, tone) => {
       if (v.motor) {
         if (templates.moto) return buildFromTemplate(templates.moto, tone, SOURCES.moto, SOURCES.moto.len);
         return buildBike(tone);
       }
-      // body style follows the model name, so the stage shows a mix of shapes
-      const key = styles[index] || "sedan";
+      // The caller names the body from the vehicle's type, so a hatchback row
+      // shows a hatchback and an MPV row shows a van. Same-type pairs share the
+      // body and split on tone instead of pretending to be different cars.
+      const key = templates[v.body] ? v.body : "sedan";
       if (templates[key]) return buildFromTemplate(templates[key], tone, SOURCES[key], SOURCES[key].len);
       return buildCar(tone);
     };
 
     if (a) {
-      slotA = make(a, 0, Math.max(indexA, 0));
+      slotA = make(a, 0);
       root.add(slotA);
     }
     if (b) {
-      slotB = make(b, 1, Math.max(styleB, 0));
+      slotB = make(b, 1);
       root.add(slotB);
     }
     // Sit them side by side with a measured gap. Each slot is reset first so a
@@ -545,14 +562,11 @@ export function createStage(canvas) {
     // takes up more room than the same pair head-on, and framing the head-on box
     // pushed the near car past the right edge once the idle turn settled.
     const box = new THREE.Box3();
-    root.rotation.set(0, REST_YAW, 0);
+    root.rotation.set(0, 0, 0);
     root.updateMatrixWorld(true);
-    for (const slot of [slotA, slotB]) if (slot) box.expandByObject(slot);
-    const size = box.getSize(new THREE.Vector3());
-    size.x *= 1.04; // covers the idle swing without zooming out for a whole car
-    // Corners taken in each car's own frame (measured before the yaw), so the
-    // camera can be checked against the silhouette instead of an axis-aligned
-    // box whose empty corners sit in mid-air.
+    // Corners taken in each car's own frame, unrotated: frame() turns them by
+    // the resting yaw itself. Measuring them already turned and then turning
+    // them again pushed the camera a quarter too far back.
     const corners = [];
     for (const slot of [slotA, slotB]) {
       // Measured after the pair is placed: boxes taken before the side-by-side
@@ -565,6 +579,11 @@ export function createStage(canvas) {
         }
       }
     }
+    root.rotation.set(0, REST_YAW, 0);
+    root.updateMatrixWorld(true);
+    for (const slot of [slotA, slotB]) if (slot) box.expandByObject(slot);
+    const size = box.getSize(new THREE.Vector3());
+    size.x *= 1.04; // covers the idle swing without zooming out for a whole car
     fit = box.isEmpty() ? null : { size, center: box.getCenter(new THREE.Vector3()), corners };
 
     // The shadow map has to cover the pair, not the whole scene, or the tyres
@@ -730,6 +749,7 @@ export function createStage(canvas) {
       );
     },
     setVehicles,
+
     setSpeed(km) {
       speed = Math.max(0, Math.min(60, Number(km) || 0)) * 0.22;
     },
