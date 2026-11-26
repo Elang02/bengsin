@@ -106,11 +106,14 @@ Numbers are always tabular. Money is `Rp 303.448`; litres `30,3`; km/L `14,5`.
   The camera frames the pair already turned by its resting yaw, because a pair seen at an
   angle needs more room than the same pair head-on, and it moves closer on narrow
   canvases; the idle swing never pushes a nose past the edge.
-  Paint is `MeshPhysicalMaterial` with clearcoat, glass is a separate low-roughness
-  surface, everything else stays matte; one flat material made every body look like a
-  toy. Body style follows the model name, so two cars
-  never share a silhouette; a motorcycle gets the bike model at 2.15 m against 4.5 m for
-  cars, so the scale difference is real. Cars are oxblood (A) and bone (B); the bars in
+  Each asset names its own paint slot, so the stage repaints by name and leaves tyres,
+  rims and grilles as authored. Replacing every material with one flat surface is what
+  made the earlier set read as toys. Paint is `MeshPhysicalMaterial` with clearcoat,
+  glass is a separate low-roughness surface.
+  Body style follows the model name and the second slot is offset by one, so a pair of
+  cars never wears the same silhouette twice; a motorcycle keeps its own paint, because
+  its texture is baked into a single material, and sits at 2.05 m against 4.3 to 5 m for
+  cars, so the scale difference is real. Cars are oxblood (A) and stone (B); the bars in
   the right column carry the same two colours, so identity is colour, not the verdict.
   Authored wheels stay parked. They carry baked orientation and tumble if spun about a
   guessed axis. If WebGL, the module or a GLB fails, `data-failed="true"` hides the

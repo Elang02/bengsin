@@ -8,7 +8,7 @@ import { RoomEnvironment } from "./vendor/environments/RoomEnvironment.js";
 const GLASS = 0x22241d;
 const TYRE = 0x0e0f0b;
 const HUB = 0x9a9c90;
-const TONES = [0x8b1538, 0xd9d6c6];
+const TONES = [0x8b1538, 0xb5b8aa];
 
 // Metres, not vibes: a 4.5 m car with 0.32 m wheels. Real ratios are what stop
 // a low-poly vehicle from reading as a toy.
@@ -131,33 +131,26 @@ function buildCar(tone) {
 // ---------------------------------------------------------------------------
 // authored models (Quaternius, CC0), loaded once and cloned per slot
 // ---------------------------------------------------------------------------
+// Each asset names its own surfaces, so the stage repaints by name instead of
+// guessing: one paint slot, an optional glass slot, everything else untouched.
+// `len` is the real overall length in metres, which is what keeps a coupe from
+// being drawn at the size of a van.
 const SOURCES = {
-  car: "/models/car-sedan.glb",
-  suv: "/models/car-suv.glb",
-  moto: "/models/moto.glb",
-  sport: "/models/car-sport.glb",
+  car: { url: "/models/car-sedan.glb", paint: ["red_chasis"], glass: ["glass"], len: 5.0 },
+  sport: { url: "/models/car-sport.glb", paint: ["body_paint"], glass: ["glass"], len: 4.3 },
+  suv: { url: "/models/car-suv.glb", paint: ["bodywork"], glass: ["glass"], len: 4.8 },
+  // The bike ships as one textured mesh: its paint is baked, so it keeps it.
+  moto: { url: "/models/moto.glb", paint: [], glass: [], len: 2.05 },
 };
 const gltfLoader = new GLTFLoader();
 const sourceCache = new Map();
 
 function loadSource(key) {
-  const url = SOURCES[key];
   if (!sourceCache.has(key)) {
-    sourceCache.set(key, gltfLoader.loadAsync(url).then((g) => g.scene));
+    sourceCache.set(key, gltfLoader.loadAsync(SOURCES[key].url).then((g) => g.scene));
   }
   return sourceCache.get(key);
 }
-
-// Our palette, mapped onto whatever flat colours the asset ships with.
-// The bike ships as one mesh wearing six flat colours; the body is "1a1a1a".
-const MOTO_TINT = {
-  "1a1a1a": 0x24261f,
-  "455a64": 0x8b1538,
-  "039be5": 0x2a2c24,
-  f44336: 0x6f0f2d,
-  ffeb3b: 0xf2eddb,
-  cfd8dc: 0x9a9c90,
-};
 
 // Paint, glass and rubber are three different surfaces; a single flat standard
 // material makes every model look like a toy. Car paint gets clearcoat over a
@@ -186,41 +179,30 @@ function surface(kind, color) {
   return new THREE.MeshStandardMaterial({ color, roughness: 0.78, metalness: 0.04 });
 }
 
-function tintModel(root, bodyColor, remap, bodyKey) {
+// Repaint by name, not by guesswork. A model that names its paint slot gets the
+// palette colour; named glass becomes glass; every other material is kept as
+// authored, because those are the parts (tyres, grilles, rims) that carry the
+// shape. Replacing them wholesale is what made the old set read as toys.
+function dressModel(root, profile, tone) {
+  const paint = (profile.paint || []).map((s) => s.toLowerCase());
+  const glass = (profile.glass || []).map((s) => s.toLowerCase());
   root.traverse((o) => {
     if (!o.isMesh) return;
-    const mats = (Array.isArray(o.material) ? o.material : [o.material]).map((m) => {
-      const key = (m.name || "").toLowerCase().replace("#", "");
-      const isGlass = /window|glass/.test(key);
-      const isBody = remap
-        ? key === bodyKey
-        : !/window|black|grey|glass|head|tail|light/.test(key);
-
-      let color = m.color ? m.color.getHex() : 0xffffff;
-      if (remap && isBody) color = bodyColor;
-      else if (remap && remap[key] !== undefined) color = remap[key];
-      else if (!remap && isBody) color = bodyColor;
-
-      if (isGlass) return surface("glass", 0x1b1d18);
-      if (isBody) return surface("paint", color);
-      if (/light/.test(key)) {
-        return new THREE.MeshStandardMaterial({
-          color,
-          roughness: 0.25,
-          metalness: 0.1,
-          emissive: color,
-          emissiveIntensity: 0.35,
-        });
-      }
-      return surface("matte", color);
-    });
-    o.material = Array.isArray(o.material) ? mats : mats[0];
+    const swap = (m) => {
+      const key = (m.name || "").toLowerCase();
+      if (paint.includes(key)) return surface("paint", TONES[tone]);
+      if (glass.includes(key)) return surface("glass", 0x1b1d18);
+      const keep = m.clone();
+      keep.envMapIntensity = 0.9;
+      return keep;
+    };
+    o.material = Array.isArray(o.material) ? o.material.map(swap) : swap(o.material);
   });
 }
 
-function buildFromTemplate(template, tone, remap, targetLen) {
+function buildFromTemplate(template, tone, profile, targetLen) {
   const g = template.clone(true);
-  tintModel(g, TONES[tone], remap, remap ? "455a64" : null);
+  dressModel(g, profile, tone);
 
   // longest horizontal axis becomes the length, then normalise and sit on y=0
   g.updateMatrixWorld(true);
@@ -419,7 +401,7 @@ export function createStage(canvas) {
     const byHeight = size.y / 2 / Math.tan(fov / 2);
     const byWidth = size.x / 2 / (Math.tan(fov / 2) * Math.max(camera.aspect, 0.6));
     // narrow canvases have vertical room to spare, so the pair can sit closer
-    const margin = camera.aspect < 2.2 ? 0.8 : 1.02;
+    const margin = camera.aspect < 2.2 ? 0.9 : 1.02;
     const dist = Math.max(byHeight, byWidth) * margin + size.z / 2;
     camBase.set(center.x * 0.3, center.y + size.y * 0.44 + 0.18, center.z + dist);
     camLook.set(center.x * 0.3, center.y * 0.74, center.z);
@@ -442,13 +424,16 @@ export function createStage(canvas) {
 
     const make = (v, tone) => {
       if (v.motor) {
-        if (templates.moto) return buildFromTemplate(templates.moto, tone, MOTO_TINT, 2.15);
+        if (templates.moto) return buildFromTemplate(templates.moto, tone, SOURCES.moto, SOURCES.moto.len);
         return buildBike(tone);
       }
       // body style follows the model name, so two cars never look identical
       const styles = ["car", "suv", "sport"].filter((k) => templates[k]);
-      const key = styles[(v.seed || 0) % Math.max(styles.length, 1)] || "car";
-      if (templates[key]) return buildFromTemplate(templates[key], tone, null, CAR.len);
+      // the second slot is offset by one, so a pair of cars never wears the
+      // same body twice
+      const shift = tone === 1 ? 1 : 0;
+      const key = styles[((v.seed || 0) + shift) % Math.max(styles.length, 1)] || "car";
+      if (templates[key]) return buildFromTemplate(templates[key], tone, SOURCES[key], SOURCES[key].len);
       return buildCar(tone);
     };
 

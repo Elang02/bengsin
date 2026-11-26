@@ -1341,6 +1341,21 @@ input[type="search"]::-webkit-search-cancel-button { display: none; }
   color: var(--muted);
 }
 
+/* Model credit: required by CC BY, kept to the grain of the page. */
+.credit {
+  padding-block: 18px 26px;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.credit a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--hair);
+}
+.credit a:hover { color: var(--ink); }
+
 /* ---------- mobile readout ---------- */
 
 @media (max-width: 640px) {

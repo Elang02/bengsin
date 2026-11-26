@@ -112,7 +112,7 @@ public/
   styles.css          token, layout, komponen
   app.js              state, render, panggilan API
   scene.js            panggung 3D perbandingan (three.js, dimuat saat dipakai)
-  models/             GLB kendaraan, CC0 Quaternius
+  models/             GLB kendaraan, CC BY 3.0 (lihat Kredit)
   vendor/             three.js 0.169.0 + GLTFLoader, di-host sendiri
   fonts/              Saira variable, di-host sendiri
   favicon.svg
@@ -128,8 +128,11 @@ run.py                launcher lokal
 - **three.js** 0.169.0, MIT. Ada di `public/vendor/`, termasuk `GLTFLoader` dan
   `environments/RoomEnvironment` untuk pencahayaan studio. Model 3D dimuat lewat import
   map, tanpa langkah build.
-- **Mobil dan motor**: [Quaternius](https://quaternius.com) "Cars Bundle", CC0, diunduh
-  lewat [poly.pizza](https://poly.pizza) dan disimpan di `public/models/`.
+- **Model kendaraan**: diunduh lewat [poly.pizza](https://poly.pizza), disimpan di
+  `public/models/`, semuanya CC BY 3.0: "Dodge Charger" oleh David Sirera, "Mazda RX-7"
+  oleh IvOfficial, "Generic Van" oleh PuKkBuMXDD, dan "Motorcycle" oleh Poly by Google.
+  Bodi mobil dicat ulang mengikuti palet situs (oxblood untuk kendaraan A, stone untuk
+  B), sisanya dibiarkan seperti aslinya. Kredit juga tampil di kaki halaman.
 - **Saira** (Omnibus-Type), SIL Open Font License. Ada di `public/fonts/`.
 
 ## Lisensi

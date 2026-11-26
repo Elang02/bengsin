@@ -50,10 +50,11 @@ a fleet manager; there is no dashboard, no report export, no team.
 - `engine_type` accepts only `GASOLINE` and `DIESEL`. Electric vehicles have no fuel
   price to compare, so they are not offered.
 - A fill-up has no date input, because the API has none.
-- The 3D models are a small CC0 set (sedan, SUV, sports car, motorbike), picked by
-  vehicle type and, for cars, by a hash of the model name. They are not a catalogue: a
-  Toyota Avanza may appear as the sedan model and a Daihatsu Rocky as the SUV. The stage
-  never claims to show your exact car, and the copy never says it does.
+- The 3D models are four CC BY 3.0 assets (classic sedan, sports coupe, panel van,
+  sport bike), picked by vehicle type and, for cars, by a hash of the model name with the
+  second slot offset, so a pair never repeats a body. They are not a catalogue: a Toyota
+  Avanza may appear as the van and a Daihatsu Rocky as the coupe. The stage never claims
+  to show your exact car, and the copy never says it does.
 - Prices are a mirror, not a live Pertamina feed. The UI says the price is "ditarik dari
   MyPertamina tiap hari" and never claims real-time.
 
